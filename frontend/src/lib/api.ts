@@ -1,0 +1,58 @@
+import type { ApiResponse } from "@/types";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+class ApiClient {
+  private token: string | null = null;
+
+  setToken(token: string | null) {
+    this.token = token;
+    if (typeof window !== "undefined") {
+      if (token) localStorage.setItem("token", token);
+      else localStorage.removeItem("token");
+    }
+  }
+
+  getToken(): string | null {
+    if (this.token) return this.token;
+    if (typeof window !== "undefined") {
+      this.token = localStorage.getItem("token");
+    }
+    return this.token;
+  }
+
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const token = this.getToken();
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    };
+    if (token) (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+    const json: ApiResponse<T> = await res.json();
+
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || `Request failed: ${res.status}`);
+    }
+    return json.data as T;
+  }
+
+  get<T>(endpoint: string) {
+    return this.request<T>(endpoint);
+  }
+
+  post<T>(endpoint: string, body?: unknown) {
+    return this.request<T>(endpoint, { method: "POST", body: JSON.stringify(body) });
+  }
+
+  put<T>(endpoint: string, body?: unknown) {
+    return this.request<T>(endpoint, { method: "PUT", body: JSON.stringify(body) });
+  }
+
+  delete<T>(endpoint: string) {
+    return this.request<T>(endpoint, { method: "DELETE" });
+  }
+}
+
+export const api = new ApiClient();
