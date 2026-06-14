@@ -18,6 +18,7 @@ export default function PosPage() {
   const tCommon = useTranslations("common");
   const tReceipt = useTranslations("receipt");
   const locale = useLocale();
+  const fmt = (amount: number) => formatCurrency(amount, locale);
   const getError = useApiError();
   const { user } = useAuthStore();
   const { cart, selectedCustomer, discount, addToCart, removeFromCart, updateQuantity, setCustomer, setDiscount, clearCart, subtotal, total } = usePosStore();
@@ -111,11 +112,11 @@ export default function PosPage() {
       <div>${tReceipt("invoice")}: ${receipt.invoiceNumber}<br>${tCommon("date")}: ${new Date(receipt.date).toLocaleString(dateLocale)}<br>
       ${tReceipt("cashier")}: ${receipt.cashierName}${receipt.customerName ? `<br>${tReceipt("customer")}: ${receipt.customerName}` : ""}</div>
       <div class="line"></div>
-      <table>${receipt.items.map((i) => `<tr><td>${i.name} x${i.quantity}</td><td>${formatCurrency(i.lineTotal)}</td></tr>`).join("")}</table>
+      <table>${receipt.items.map((i) => `<tr><td>${i.name} x${i.quantity}</td><td>${fmt(i.lineTotal)}</td></tr>`).join("")}</table>
       <div class="line"></div>
-      <table><tr><td>${tCommon("subtotal")}</td><td>${formatCurrency(receipt.subTotal)}</td></tr>
-      ${receipt.discountAmount > 0 ? `<tr><td>${tCommon("discount")}</td><td>-${formatCurrency(receipt.discountAmount)}</td></tr>` : ""}
-      <tr><td><b>${tCommon("total")}</b></td><td><b>${formatCurrency(receipt.total)}</b></td></tr></table>
+      <table><tr><td>${tCommon("subtotal")}</td><td>${fmt(receipt.subTotal)}</td></tr>
+      ${receipt.discountAmount > 0 ? `<tr><td>${tCommon("discount")}</td><td>-${fmt(receipt.discountAmount)}</td></tr>` : ""}
+      <tr><td><b>${tCommon("total")}</b></td><td><b>${fmt(receipt.total)}</b></td></tr></table>
       <div class="line"></div><div class="center">${tCommon("thankYou")}</div></body></html>`);
     win.document.close();
     win.print();
@@ -152,14 +153,14 @@ export default function PosPage() {
               className="flex flex-col items-start rounded-xl border border-slate-200 p-3 text-start hover:border-violet-400 hover:bg-violet-50 active:scale-95 transition-all">
               <span className="text-sm font-medium text-slate-900 line-clamp-2">{s.name}</span>
               {s.categoryName && <span className="text-xs text-slate-400 mt-0.5">{s.categoryName}</span>}
-              <span className="mt-auto pt-2 text-sm font-bold text-violet-600">{formatCurrency(s.price)}</span>
+              <span className="mt-auto pt-2 text-sm font-bold text-violet-600">{fmt(s.price)}</span>
             </button>
           )) : filteredProducts.map((p) => (
             <button key={p.id} onClick={() => addToCart({ itemType: "Product", productId: p.id, name: p.name, unitPrice: p.price })}
               className={cn("flex flex-col items-start rounded-xl border p-3 text-start hover:border-violet-400 hover:bg-violet-50 active:scale-95 transition-all", p.isLowStock ? "border-amber-300" : "border-slate-200")}>
               <span className="text-sm font-medium text-slate-900 line-clamp-2">{p.name}</span>
               <span className="text-xs text-slate-400">{t("stock", { count: p.stockQuantity })}</span>
-              <span className="mt-auto pt-2 text-sm font-bold text-violet-600">{formatCurrency(p.price)}</span>
+              <span className="mt-auto pt-2 text-sm font-bold text-violet-600">{fmt(p.price)}</span>
             </button>
           ))}
         </div>
@@ -210,7 +211,7 @@ export default function PosPage() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-900 truncate">{item.name}</p>
-                  <p className="text-xs text-slate-400">{formatCurrency(item.unitPrice)} {t("each")}</p>
+                  <p className="text-xs text-slate-400">{fmt(item.unitPrice)} {t("each")}</p>
                 </div>
                 <button onClick={() => removeFromCart(item.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
               </div>
@@ -220,7 +221,7 @@ export default function PosPage() {
                   <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
                   <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="rounded-md border border-slate-200 p-0.5 hover:bg-slate-50"><Plus className="h-3 w-3" /></button>
                 </div>
-                <span className="text-sm font-semibold">{formatCurrency(item.unitPrice * item.quantity)}</span>
+                <span className="text-sm font-semibold">{fmt(item.unitPrice * item.quantity)}</span>
               </div>
             </div>
           ))}
@@ -229,7 +230,7 @@ export default function PosPage() {
         <div className="border-t border-slate-100 p-3 space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-slate-500">{tCommon("subtotal")}</span>
-            <span>{formatCurrency(subtotal())}</span>
+            <span>{fmt(subtotal())}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-slate-500 shrink-0">{tCommon("discount")}</span>
@@ -237,7 +238,7 @@ export default function PosPage() {
           </div>
           <div className="flex items-center justify-between font-bold text-lg pt-1">
             <span>{tCommon("total")}</span>
-            <span className="text-violet-600">{formatCurrency(total())}</span>
+            <span className="text-violet-600">{fmt(total())}</span>
           </div>
           <Button className="w-full" size="lg" onClick={handleCheckout} disabled={cart.length === 0 || processing}>
             <CreditCard className="h-4 w-4" />
@@ -256,7 +257,7 @@ export default function PosPage() {
               <h3 className="text-lg font-bold">{t("saleComplete")}</h3>
               <p className="text-sm text-slate-500">{receipt.invoiceNumber}</p>
             </div>
-            <p className="text-center text-3xl font-bold text-violet-600 mb-4">{formatCurrency(receipt.total)}</p>
+            <p className="text-center text-3xl font-bold text-violet-600 mb-4">{fmt(receipt.total)}</p>
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={printReceipt}><Printer className="h-4 w-4" /> {tCommon("print")}</Button>
               <Button className="flex-1" onClick={() => setReceipt(null)}>{tCommon("done")}</Button>

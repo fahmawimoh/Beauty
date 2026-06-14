@@ -43,7 +43,9 @@
     "deleteSuccess": "تم الحذف بنجاح",
     "deleteFailed": "فشل الحذف. حاول مرة أخرى.",
     "confirm": "تأكيد",
-    "durationMinutes": "المدة (دقيقة)"
+    "durationMinutes": "المدة (دقيقة)",
+    "currencySymbol": "د.أ",
+    "currencyCode": "JOD"
   },
   "nav": {
     "dashboard": "لوحة التحكم",

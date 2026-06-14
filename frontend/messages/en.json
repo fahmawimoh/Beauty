@@ -43,7 +43,9 @@
     "deleteSuccess": "Deleted successfully",
     "deleteFailed": "Failed to delete. Please try again.",
     "confirm": "Confirm",
-    "durationMinutes": "Duration (min)"
+    "durationMinutes": "Duration (min)",
+    "currencySymbol": "JD",
+    "currencyCode": "JOD"
   },
   "nav": {
     "dashboard": "Dashboard",

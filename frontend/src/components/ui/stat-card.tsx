@@ -11,10 +11,9 @@ interface StatCardProps {
   className?: string;
 }
 
-export function StatCard({ title, value, subtitle, icon: Icon, className }: StatCardProps) {
-  const displayValue = typeof value === "number" && title.toLowerCase().includes("revenue") || title.toLowerCase().includes("profit") || title.toLowerCase().includes("expense")
-    ? formatCurrency(value as number)
-    : value;
+export function StatCard({ title, value, subtitle, icon: Icon, isCurrency, className }: StatCardProps) {
+  const displayValue =
+    isCurrency && typeof value === "number" ? formatCurrency(value) : value;
 
   return (
     <div className={cn("rounded-xl border border-slate-200 bg-white p-5 shadow-sm", className)}>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { api } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store";
@@ -26,6 +26,8 @@ const periods = ["daily", "weekly", "monthly", "yearly"] as const;
 export default function ReportsPage() {
   const t = useTranslations("reports");
   const tEmployees = useTranslations("employees");
+  const locale = useLocale();
+  const fmt = (amount: number) => formatCurrency(amount, locale);
   const { user } = useAuthStore();
   const [period, setPeriod] = useState<(typeof periods)[number]>("monthly");
   const [report, setReport] = useState<PeriodReport | null>(null);
@@ -37,10 +39,10 @@ export default function ReportsPage() {
 
   const stats = report
     ? [
-        { label: t("revenue"), value: formatCurrency(report.totalRevenue), color: "text-violet-600" },
-        { label: t("expenses"), value: formatCurrency(report.totalExpenses), color: "text-red-500" },
-        { label: t("netProfit"), value: formatCurrency(report.netProfit), color: report.netProfit >= 0 ? "text-emerald-600" : "text-red-500" },
-        { label: t("avgInvoice"), value: formatCurrency(report.averageInvoiceValue), color: "text-slate-900" },
+        { label: t("revenue"), value: fmt(report.totalRevenue), color: "text-violet-600" },
+        { label: t("expenses"), value: fmt(report.totalExpenses), color: "text-red-500" },
+        { label: t("netProfit"), value: fmt(report.netProfit), color: report.netProfit >= 0 ? "text-emerald-600" : "text-red-500" },
+        { label: t("avgInvoice"), value: fmt(report.averageInvoiceValue), color: "text-slate-900" },
       ]
     : [];
 
@@ -84,7 +86,7 @@ export default function ReportsPage() {
                   <div key={c.category} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
                     <span className="text-sm">{c.category}</span>
                     <div className="text-right">
-                      <p className="text-sm font-semibold">{formatCurrency(c.revenue)}</p>
+                      <p className="text-sm font-semibold">{fmt(c.revenue)}</p>
                       <p className="text-xs text-slate-400">{t("items", { count: c.count })}</p>
                     </div>
                   </div>
@@ -101,7 +103,7 @@ export default function ReportsPage() {
                   <div key={e.employeeId} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
                     <span className="text-sm font-medium">{e.employeeName}</span>
                     <div className="text-right">
-                      <p className="text-sm font-semibold">{formatCurrency(e.revenue)}</p>
+                      <p className="text-sm font-semibold">{fmt(e.revenue)}</p>
                       <p className="text-xs text-slate-400">{e.invoiceCount} {tEmployees("invoices").toLowerCase()}</p>
                     </div>
                   </div>

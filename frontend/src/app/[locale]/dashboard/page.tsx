@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { DollarSign, Users, Receipt, TrendingUp, AlertTriangle, Package } from "lucide-react";
+import { Banknote, Users, Receipt, TrendingUp, AlertTriangle, Package } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { api } from "@/lib/api";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatCurrencyCompact } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store";
 import type { DashboardSummary } from "@/types";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
@@ -39,16 +39,16 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title={t("todayRevenue")} value={data?.todayRevenue ?? 0} icon={DollarSign} />
+        <StatCard title={t("todayRevenue")} value={data?.todayRevenue ?? 0} icon={Banknote} isCurrency />
         <StatCard title={t("todayCustomers")} value={data?.todayCustomers ?? 0} icon={Users} />
         <StatCard title={t("todayInvoices")} value={data?.todayInvoices ?? 0} icon={Receipt} />
-        <StatCard title={t("todayProfit")} value={data?.todayProfit ?? 0} icon={TrendingUp} />
+        <StatCard title={t("todayProfit")} value={data?.todayProfit ?? 0} icon={TrendingUp} isCurrency />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <StatCard title={t("weekRevenue")} value={data?.weekRevenue ?? 0} icon={DollarSign} className="lg:col-span-1" />
-        <StatCard title={t("monthRevenue")} value={data?.monthRevenue ?? 0} icon={DollarSign} className="lg:col-span-1" />
-        <StatCard title={t("yearRevenue")} value={data?.yearRevenue ?? 0} icon={DollarSign} className="lg:col-span-1" />
+        <StatCard title={t("weekRevenue")} value={data?.weekRevenue ?? 0} icon={Banknote} isCurrency className="lg:col-span-1" />
+        <StatCard title={t("monthRevenue")} value={data?.monthRevenue ?? 0} icon={Banknote} isCurrency className="lg:col-span-1" />
+        <StatCard title={t("yearRevenue")} value={data?.yearRevenue ?? 0} icon={Banknote} isCurrency className="lg:col-span-1" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -60,8 +60,8 @@ export default function DashboardPage() {
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={chartData}>
                 <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v}`} />
-                <Tooltip formatter={(v) => formatCurrency(Number(v))} />
+                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => formatCurrencyCompact(Number(v), locale)} />
+                <Tooltip formatter={(v) => formatCurrency(Number(v), locale)} />
                 <Bar dataKey="revenue" fill="#7c3aed" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -89,7 +89,7 @@ export default function DashboardPage() {
             )}
             <div className="rounded-lg bg-slate-50 p-3">
               <p className="text-xs text-slate-500">{t("todayExpenses")}</p>
-              <p className="text-lg font-bold text-slate-900">{formatCurrency(data?.todayExpenses ?? 0)}</p>
+              <p className="text-lg font-bold text-slate-900">{formatCurrency(data?.todayExpenses ?? 0, locale)}</p>
             </div>
           </CardContent>
         </Card>
