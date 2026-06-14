@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { PasswordStrength, validatePassword } from "@/components/ui/password-strength";
@@ -76,16 +77,16 @@ export default function SettingsPage() {
           <form onSubmit={handleChangePassword} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("currentPassword")}</label>
-              <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+              <PasswordInput value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("newPassword")}</label>
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
+              <PasswordInput value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
               <PasswordStrength password={newPassword} />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("confirmPassword")}</label>
-              <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+              <PasswordInput value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
             </div>
             {message && <p className="text-sm text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2">{message}</p>}
             {error && <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>}

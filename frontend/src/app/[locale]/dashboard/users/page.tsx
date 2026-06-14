@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Plus, Shield, Pencil, Trash2, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Card, CardContent } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { FormDialog } from "@/components/ui/form-dialog";
@@ -309,7 +310,7 @@ export default function UsersPage() {
               </div>
               <div>
                 <FieldLabel>{tAuth("password")}</FieldLabel>
-                <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} minLength={6} required />
+                <PasswordInput value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} minLength={6} required />
               </div>
               <div>
                 <FieldLabel>{t("role")}</FieldLabel>
@@ -440,14 +441,13 @@ export default function UsersPage() {
         {passwordTarget?.id === user?.userId && (
           <div>
             <FieldLabel>{t("currentPassword")}</FieldLabel>
-            <Input type="password" value={passwordForm.currentPassword} onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })} autoFocus />
+            <PasswordInput value={passwordForm.currentPassword} onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })} autoFocus />
             <FieldError message={passwordErrors.currentPassword} />
           </div>
         )}
         <div>
           <FieldLabel>{t("newPassword")}</FieldLabel>
-          <Input
-            type="password"
+          <PasswordInput
             value={passwordForm.newPassword}
             onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
             autoFocus={passwordTarget?.id !== user?.userId}
@@ -457,7 +457,7 @@ export default function UsersPage() {
         </div>
         <div>
           <FieldLabel>{t("confirmPassword")}</FieldLabel>
-          <Input type="password" value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} />
+          <PasswordInput value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} />
           <FieldError message={passwordErrors.confirmPassword} />
         </div>
       </FormDialog>

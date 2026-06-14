@@ -6,6 +6,7 @@ import { useRouter, Link } from "@/i18n/navigation";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { useAuthStore } from "@/lib/store";
 import { useApiError } from "@/lib/errors";
@@ -77,7 +78,7 @@ export default function LoginPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("password")}</label>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+              <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
             </div>
             {error && <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
             <Button type="submit" className="w-full" size="lg" disabled={loading}>

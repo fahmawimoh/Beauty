@@ -44,6 +44,8 @@
     "deleteFailed": "Failed to delete. Please try again.",
     "confirm": "Confirm",
     "durationMinutes": "Duration (min)",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "currencySymbol": "JD",
     "currencyCode": "JOD"
   },

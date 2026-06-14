@@ -44,6 +44,8 @@
     "deleteFailed": "فشل الحذف. حاول مرة أخرى.",
     "confirm": "تأكيد",
     "durationMinutes": "المدة (دقيقة)",
+    "showPassword": "إظهار كلمة المرور",
+    "hidePassword": "إخفاء كلمة المرور",
     "currencySymbol": "د.أ",
     "currencyCode": "JOD"
   },
