@@ -47,8 +47,19 @@ class ApiClient {
     };
     if (token) (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
 
-    const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
-    const json: ApiResponse<T> = await res.json();
+    let res: Response;
+    try {
+      res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+    } catch {
+      throw new Error("Unable to connect to the server.");
+    }
+
+    let json: ApiResponse<T>;
+    try {
+      json = await res.json();
+    } catch {
+      throw new Error(res.ok ? "Invalid server response." : `Request failed: ${res.status}`);
+    }
 
     if (
       res.status === 401 &&
@@ -61,8 +72,7 @@ class ApiClient {
     }
 
     if (!res.ok) {
-      const message = json.message || `Request failed: ${res.status}`;
-      throw new Error(message);
+      throw new Error(json.message || `Request failed: ${res.status}`);
     }
     if (!json.success) {
       throw new Error(json.message || "Request failed");

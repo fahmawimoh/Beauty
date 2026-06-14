@@ -166,3 +166,54 @@ export interface Receipt {
   taxAmount: number;
   total: number;
 }
+
+export interface WhatsAppTemplate {
+  key: string;
+  nameEn: string;
+  nameAr: string;
+  bodyEn: string;
+  bodyAr: string;
+  templateType: string;
+}
+
+export interface WhatsAppRecipient {
+  customerId: string;
+  name: string;
+  phone: string;
+}
+
+export interface RecipientPreview {
+  totalCount: number;
+  sample: WhatsAppRecipient[];
+}
+
+export interface WhatsAppCampaign {
+  id: string;
+  name: string;
+  body: string;
+  templateType: string;
+  status: string;
+  totalRecipients: number;
+  sentCount: number;
+  failedCount: number;
+  pendingCount: number;
+  filterSummary?: string;
+  createdByName: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface WhatsAppMessageLog {
+  id: string;
+  customerId?: string;
+  customerName: string;
+  phone: string;
+  status: string;
+  errorMessage?: string;
+  sentAt?: string;
+  createdAt: string;
+}
+
+export interface WhatsAppCampaignDetail extends WhatsAppCampaign {
+  messages: WhatsAppMessageLog[];
+}

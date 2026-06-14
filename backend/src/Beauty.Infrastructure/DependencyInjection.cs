@@ -2,6 +2,7 @@ using Beauty.Application.Interfaces;
 using Beauty.Infrastructure.Persistence;
 using Beauty.Infrastructure.Repositories;
 using Beauty.Infrastructure.Services;
+using Beauty.Infrastructure.WhatsApp;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +37,21 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddHttpContextAccessor();
+
+        services.Configure<WhatsAppOptions>(configuration.GetSection(WhatsAppOptions.SectionName));
+
+        var whatsAppProvider = configuration.GetSection(WhatsAppOptions.SectionName)["Provider"] ?? "Mock";
+        if (whatsAppProvider.Equals("Twilio", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddHttpClient<TwilioWhatsAppProvider>();
+            services.AddScoped<IWhatsAppProvider>(sp => sp.GetRequiredService<TwilioWhatsAppProvider>());
+        }
+        else
+        {
+            services.AddScoped<IWhatsAppProvider, MockWhatsAppProvider>();
+        }
+
+        services.AddHostedService<WhatsAppMessageProcessor>();
 
         return services;
     }
