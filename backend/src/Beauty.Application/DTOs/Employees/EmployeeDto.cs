@@ -25,6 +25,7 @@ public record CreateEmployeeRequest(
 );
 
 public record UpdateEmployeeRequest(
+    string Email,
     string FirstName,
     string LastName,
     UserRole Role,

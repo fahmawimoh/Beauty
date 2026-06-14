@@ -68,12 +68,36 @@ public class EmployeeService : IEmployeeService
 
     public async Task<EmployeeDto?> UpdateAsync(Guid id, UpdateEmployeeRequest request, CancellationToken cancellationToken = default)
     {
+        var tenantId = RequireTenantId();
         var user = await _context.Users.Include(u => u.UserBranches)
-            .FirstOrDefaultAsync(u => u.Id == id && u.TenantId == RequireTenantId(), cancellationToken);
+            .FirstOrDefaultAsync(u => u.Id == id && u.TenantId == tenantId, cancellationToken);
         if (user is null) return null;
 
-        user.FirstName = request.FirstName;
-        user.LastName = request.LastName;
+        var email = request.Email.Trim().ToLowerInvariant();
+        var firstName = request.FirstName.Trim();
+        var lastName = request.LastName.Trim();
+
+        if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
+            throw new InvalidOperationException("First name and last name are required.");
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+            throw new InvalidOperationException("A valid email address is required.");
+        if (await _context.Users.AnyAsync(u => u.Email == email && u.Id != id, cancellationToken))
+            throw new InvalidOperationException("Email already exists.");
+        if (request.BranchIds.Count == 0)
+            throw new InvalidOperationException("At least one branch must be assigned.");
+
+        if (user.Role == UserRole.Admin && (request.Role != UserRole.Admin || !request.IsActive))
+        {
+            var activeAdmins = await _context.Users.CountAsync(
+                u => u.TenantId == tenantId && u.IsActive && u.Role == UserRole.Admin && u.Id != id,
+                cancellationToken);
+            if (activeAdmins == 0)
+                throw new InvalidOperationException("Cannot remove or deactivate the last admin account.");
+        }
+
+        user.Email = email;
+        user.FirstName = firstName;
+        user.LastName = lastName;
         user.Role = request.Role;
         user.IsActive = request.IsActive;
         user.CommissionRate = request.CommissionRate;
@@ -86,7 +110,35 @@ public class EmployeeService : IEmployeeService
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync("Update", "User", user.Id, user.FullName, cancellationToken);
         return ToDto(user);
+    }
+
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var tenantId = RequireTenantId();
+        var currentUserId = _currentUser.UserId;
+        if (currentUserId == id)
+            throw new InvalidOperationException("You cannot delete your own account.");
+
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.Id == id && u.TenantId == tenantId && u.IsActive, cancellationToken);
+        if (user is null) return false;
+
+        if (user.Role == UserRole.Admin)
+        {
+            var otherActiveAdmins = await _context.Users.CountAsync(
+                u => u.TenantId == tenantId && u.IsActive && u.Role == UserRole.Admin && u.Id != id,
+                cancellationToken);
+            if (otherActiveAdmins == 0)
+                throw new InvalidOperationException("Cannot delete the last admin account.");
+        }
+
+        user.IsActive = false;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync("Delete", "User", user.Id, user.FullName, cancellationToken);
+        return true;
     }
 
     public async Task<IReadOnlyList<EmployeePerformanceDto>> GetPerformanceAsync(Guid? branchId = null, DateTime? from = null, DateTime? to = null, CancellationToken cancellationToken = default)

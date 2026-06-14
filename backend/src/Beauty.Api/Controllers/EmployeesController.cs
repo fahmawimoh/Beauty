@@ -48,8 +48,17 @@ public class EmployeesController : ControllerBase
     [RoleAuthorize(UserRole.Admin)]
     public async Task<ActionResult<ApiResponse<EmployeeDto>>> Update(Guid id, [FromBody] UpdateEmployeeRequest request, CancellationToken ct)
     {
-        var employee = await _employeeService.UpdateAsync(id, request, ct);
-        return employee is null ? NotFound(ApiResponse<EmployeeDto>.Fail("Employee not found")) : Ok(ApiResponse<EmployeeDto>.Ok(employee));
+        try
+        {
+            var employee = await _employeeService.UpdateAsync(id, request, ct);
+            return employee is null
+                ? NotFound(ApiResponse<EmployeeDto>.Fail("Employee not found"))
+                : Ok(ApiResponse<EmployeeDto>.Ok(employee, "Employee updated successfully"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<EmployeeDto>.Fail(ex.Message));
+        }
     }
 
     [HttpGet("performance")]

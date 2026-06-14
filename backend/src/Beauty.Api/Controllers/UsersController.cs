@@ -53,10 +53,33 @@ public class UsersController : ControllerBase
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<ActionResult<ApiResponse<EmployeeDto>>> Update(Guid id, [FromBody] UpdateEmployeeRequest request, CancellationToken ct)
     {
-        var user = await _employeeService.UpdateAsync(id, request, ct);
-        return user is null
-            ? NotFound(ApiResponse<EmployeeDto>.Fail("User not found"))
-            : Ok(ApiResponse<EmployeeDto>.Ok(user));
+        try
+        {
+            var user = await _employeeService.UpdateAsync(id, request, ct);
+            return user is null
+                ? NotFound(ApiResponse<EmployeeDto>.Fail("User not found"))
+                : Ok(ApiResponse<EmployeeDto>.Ok(user, "User updated successfully"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<EmployeeDto>.Fail(ex.Message));
+        }
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<ActionResult<ApiResponse<bool>>> Delete(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            return await _employeeService.DeleteAsync(id, ct)
+                ? Ok(ApiResponse<bool>.Ok(true, "User deactivated successfully"))
+                : NotFound(ApiResponse<bool>.Fail("User not found"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<bool>.Fail(ex.Message));
+        }
     }
 
     [HttpGet("roles")]
