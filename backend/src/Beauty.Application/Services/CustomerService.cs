@@ -1,3 +1,4 @@
+using Beauty.Application.Common;
 using Beauty.Application.DTOs.Common;
 using Beauty.Application.DTOs.Customers;
 using Beauty.Application.Interfaces;
@@ -52,13 +53,15 @@ public class CustomerService : ICustomerService
 
     public async Task<CustomerDto> CreateAsync(CreateCustomerRequest request, CancellationToken cancellationToken = default)
     {
+        var phone = PhoneNumberValidator.ValidateAndNormalize(request.Phone, required: true);
+
         var customer = new Customer
         {
             TenantId = RequireTenantId(),
-            Name = request.Name,
-            Phone = request.Phone,
-            Email = request.Email,
-            Notes = request.Notes
+            Name = request.Name.Trim(),
+            Phone = phone,
+            Email = request.Email?.Trim(),
+            Notes = request.Notes?.Trim()
         };
 
         _context.Customers.Add(customer);
@@ -74,10 +77,10 @@ public class CustomerService : ICustomerService
             .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == RequireTenantId(), cancellationToken);
         if (customer is null) return null;
 
-        customer.Name = request.Name;
-        customer.Phone = request.Phone;
-        customer.Email = request.Email;
-        customer.Notes = request.Notes;
+        customer.Name = request.Name.Trim();
+        customer.Phone = PhoneNumberValidator.ValidateAndNormalize(request.Phone, required: true);
+        customer.Email = request.Email?.Trim();
+        customer.Notes = request.Notes?.Trim();
         customer.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);

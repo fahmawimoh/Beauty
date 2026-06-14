@@ -31,14 +31,32 @@ public class CustomersController : ControllerBase
 
     [HttpPost]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> Create([FromBody] CreateCustomerRequest request, CancellationToken ct)
-        => Ok(ApiResponse<CustomerDto>.Ok(await _customerService.CreateAsync(request, ct)));
+    {
+        try
+        {
+            return Ok(ApiResponse<CustomerDto>.Ok(await _customerService.CreateAsync(request, ct)));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<CustomerDto>.Fail(ex.Message));
+        }
+    }
 
     [HttpPut("{id:guid}")]
     [RoleAuthorize(UserRole.Admin, UserRole.Manager)]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> Update(Guid id, [FromBody] UpdateCustomerRequest request, CancellationToken ct)
     {
-        var customer = await _customerService.UpdateAsync(id, request, ct);
-        return customer is null ? NotFound(ApiResponse<CustomerDto>.Fail("Customer not found")) : Ok(ApiResponse<CustomerDto>.Ok(customer));
+        try
+        {
+            var customer = await _customerService.UpdateAsync(id, request, ct);
+            return customer is null
+                ? NotFound(ApiResponse<CustomerDto>.Fail("Customer not found"))
+                : Ok(ApiResponse<CustomerDto>.Ok(customer));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<CustomerDto>.Fail(ex.Message));
+        }
     }
 
     [HttpDelete("{id:guid}")]

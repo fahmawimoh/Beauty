@@ -2,8 +2,16 @@ import type { ApiResponse } from "@/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
+type UnauthorizedHandler = () => void | Promise<void>;
+
 class ApiClient {
   private token: string | null = null;
+  private unauthorizedHandler: UnauthorizedHandler | null = null;
+  private handlingUnauthorized = false;
+
+  setUnauthorizedHandler(handler: UnauthorizedHandler | null) {
+    this.unauthorizedHandler = handler;
+  }
 
   setToken(token: string | null) {
     this.token = token;
@@ -21,6 +29,16 @@ class ApiClient {
     return this.token;
   }
 
+  private async handleUnauthorized() {
+    if (this.handlingUnauthorized || !this.unauthorizedHandler) return;
+    this.handlingUnauthorized = true;
+    try {
+      await this.unauthorizedHandler();
+    } finally {
+      this.handlingUnauthorized = false;
+    }
+  }
+
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = this.getToken();
     const headers: HeadersInit = {
@@ -31,6 +49,16 @@ class ApiClient {
 
     const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
     const json: ApiResponse<T> = await res.json();
+
+    if (
+      res.status === 401 &&
+      !endpoint.includes("/auth/login") &&
+      !endpoint.includes("/auth/register") &&
+      !endpoint.includes("/auth/logout")
+    ) {
+      await this.handleUnauthorized();
+      throw new Error(json.message || "Unauthorized");
+    }
 
     if (!res.ok || !json.success) {
       throw new Error(json.message || `Request failed: ${res.status}`);

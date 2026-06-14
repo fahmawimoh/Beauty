@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { BranchOption, CartItem, Customer, LoginResponse } from "@/types";
 import { api } from "./api";
+import { performLogout } from "./auth";
 
 interface AuthState {
   user: LoginResponse | null;
@@ -16,7 +17,7 @@ interface AuthState {
     lastName: string;
     branchName?: string;
   }) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   switchBranch: (branchId: string) => void;
 }
 
@@ -39,9 +40,8 @@ export const useAuthStore = create<AuthState>()(
         set({ user: result, isAuthenticated: true });
       },
 
-      logout: () => {
-        api.setToken(null);
-        set({ user: null, isAuthenticated: false });
+      logout: async () => {
+        await performLogout();
       },
 
       switchBranch: (branchId) => {

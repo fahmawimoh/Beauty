@@ -57,6 +57,12 @@ var app = builder.Build();
 
 await DatabaseInitializer.InitializeAsync(app.Services, builder.Configuration);
 
+var databaseName = builder.Configuration["Database:Name"] ?? "Beauty";
+app.Logger.LogInformation(
+    "Beauty API started. Environment: {Environment}, Database: {Database}",
+    app.Environment.EnvironmentName,
+    databaseName);
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

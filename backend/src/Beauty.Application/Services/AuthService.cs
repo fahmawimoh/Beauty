@@ -110,6 +110,13 @@ public class AuthService : IAuthService
         return BuildLoginResponse(user, user.Tenant, branch, branches);
     }
 
+    public async Task LogoutAsync(CancellationToken cancellationToken = default)
+    {
+        var userId = _currentUser.UserId;
+        if (userId.HasValue)
+            await _auditService.LogAsync("Logout", "User", userId.Value, cancellationToken: cancellationToken);
+    }
+
     private LoginResponse BuildLoginResponse(User user, Tenant tenant, Branch? branch, IReadOnlyList<Branch> branches)
     {
         var branchId = branch?.Id;

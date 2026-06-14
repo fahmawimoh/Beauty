@@ -68,4 +68,12 @@ public class AuthController : ControllerBase
             return Unauthorized(ApiResponse<LoginResponse>.Fail("Invalid email or password"));
         }
     }
+
+    [HttpPost("logout")]
+    [Authorize(Policy = AuthorizationPolicies.PosAccess)]
+    public async Task<ActionResult<ApiResponse<bool>>> Logout(CancellationToken ct)
+    {
+        await _authService.LogoutAsync(ct);
+        return Ok(ApiResponse<bool>.Ok(true, "Logged out successfully"));
+    }
 }

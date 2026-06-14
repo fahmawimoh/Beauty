@@ -61,6 +61,7 @@ export interface ServiceCategory {
   description?: string;
   sortOrder: number;
   isActive: boolean;
+  serviceCount: number;
 }
 
 export interface ServiceOffering {
