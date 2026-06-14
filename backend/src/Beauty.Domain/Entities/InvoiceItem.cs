@@ -13,6 +13,7 @@ public class InvoiceItem : BaseEntity
     public string Name { get; set; } = string.Empty;
     public int Quantity { get; set; } = 1;
     public decimal UnitPrice { get; set; }
+    public decimal DiscountValue { get; set; }
     public decimal DiscountAmount { get; set; }
     public decimal LineTotal { get; set; }
 

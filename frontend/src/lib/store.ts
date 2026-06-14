@@ -1,8 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { BranchOption, CartItem, Customer, LoginResponse } from "@/types";
+import type { BranchOption, CartItem, Customer, DiscountType, LoginResponse, TenantSettings } from "@/types";
 import { api } from "./api";
 import { performLogout } from "./auth";
+import { calculateDiscountAmount, DEFAULT_DISCOUNT_TYPE, normalizeDiscountType } from "./discount";
 
 interface AuthState {
   user: LoginResponse | null;
@@ -57,29 +58,55 @@ export const useAuthStore = create<AuthState>()(
   )
 );
 
+interface SettingsState {
+  discountType: DiscountType;
+  loaded: boolean;
+  loadSettings: () => Promise<void>;
+  updateDiscountType: (discountType: DiscountType) => Promise<void>;
+  setDiscountType: (discountType: DiscountType) => void;
+}
+
+export const useSettingsStore = create<SettingsState>((set) => ({
+  discountType: DEFAULT_DISCOUNT_TYPE,
+  loaded: false,
+
+  loadSettings: async () => {
+    const data = await api.get<TenantSettings>("/settings");
+    set({ discountType: normalizeDiscountType(data.discountType), loaded: true });
+  },
+
+  updateDiscountType: async (discountType) => {
+    const data = await api.put<TenantSettings>("/settings/discount-type", { discountType });
+    set({ discountType: normalizeDiscountType(data.discountType), loaded: true });
+  },
+
+  setDiscountType: (discountType) => set({ discountType: normalizeDiscountType(discountType), loaded: true }),
+}));
+
 interface PosState {
   cart: CartItem[];
   selectedCustomer: Customer | null;
-  discount: number;
-  addToCart: (item: Omit<CartItem, "id" | "quantity" | "discountAmount"> & { quantity?: number }) => void;
+  discountValue: number;
+  addToCart: (item: Omit<CartItem, "id" | "quantity" | "discountValue"> & { quantity?: number }) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   setCustomer: (customer: Customer | null) => void;
-  setDiscount: (discount: number) => void;
+  setDiscountValue: (discountValue: number) => void;
   clearCart: () => void;
   subtotal: () => number;
+  discountAmount: () => number;
   total: () => number;
 }
 
 export const usePosStore = create<PosState>((set, get) => ({
   cart: [],
   selectedCustomer: null,
-  discount: 0,
+  discountValue: 0,
 
   addToCart: (item) => {
     const id = crypto.randomUUID();
     set((state) => ({
-      cart: [...state.cart, { ...item, id, quantity: item.quantity || 1, discountAmount: 0 }],
+      cart: [...state.cart, { ...item, id, quantity: item.quantity || 1, discountValue: 0 }],
     }));
   },
 
@@ -91,9 +118,24 @@ export const usePosStore = create<PosState>((set, get) => ({
     })),
 
   setCustomer: (customer) => set({ selectedCustomer: customer }),
-  setDiscount: (discount) => set({ discount }),
-  clearCart: () => set({ cart: [], selectedCustomer: null, discount: 0 }),
+  setDiscountValue: (discountValue) => set({ discountValue }),
+  clearCart: () => set({ cart: [], selectedCustomer: null, discountValue: 0 }),
 
-  subtotal: () => get().cart.reduce((sum, i) => sum + i.unitPrice * i.quantity - i.discountAmount, 0),
-  total: () => Math.max(0, get().subtotal() - get().discount),
+  subtotal: () =>
+    get().cart.reduce((sum, i) => {
+      const lineSubtotal = i.unitPrice * i.quantity;
+      const lineDiscount = calculateDiscountAmount(
+        useSettingsStore.getState().discountType,
+        lineSubtotal,
+        i.discountValue
+      );
+      return sum + lineSubtotal - lineDiscount;
+    }, 0),
+
+  discountAmount: () => {
+    const sub = get().subtotal();
+    return calculateDiscountAmount(useSettingsStore.getState().discountType, sub, get().discountValue);
+  },
+
+  total: () => Math.max(0, get().subtotal() - get().discountAmount()),
 }));

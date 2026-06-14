@@ -20,6 +20,7 @@ public interface IAppDbContext
     DbSet<InvoiceItem> InvoiceItems { get; }
     DbSet<Expense> Expenses { get; }
     DbSet<AuditLog> AuditLogs { get; }
+    DbSet<TenantSettings> TenantSettings { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

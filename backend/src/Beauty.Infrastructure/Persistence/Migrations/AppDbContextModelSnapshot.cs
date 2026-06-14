@@ -263,6 +263,14 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("DiscountAmount")
                         .HasColumnType("numeric");
 
+                    b.Property<string>("DiscountType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<decimal>("DiscountValue")
+                        .HasColumnType("numeric");
+
                     b.Property<string>("InvoiceNumber")
                         .IsRequired()
                         .HasColumnType("text");
@@ -315,6 +323,9 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("DiscountAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("DiscountValue")
                         .HasColumnType("numeric");
 
                     b.Property<Guid?>("EmployeeId")
@@ -622,6 +633,34 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                     b.ToTable("Tenants");
                 });
 
+            modelBuilder.Entity("Beauty.Domain.Entities.TenantSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DiscountType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique();
+
+                    b.ToTable("TenantSettings");
+                });
+
             modelBuilder.Entity("Beauty.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -908,6 +947,17 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Supplier", b =>
+                {
+                    b.HasOne("Beauty.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.TenantSettings", b =>
                 {
                     b.HasOne("Beauty.Domain.Entities.Tenant", "Tenant")
                         .WithMany()

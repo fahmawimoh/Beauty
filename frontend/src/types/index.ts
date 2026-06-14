@@ -31,12 +31,19 @@ export interface LoginResponse {
   branches: BranchOption[];
 }
 
+export type DiscountType = "PERCENTAGE" | "FIXED";
+
+export interface TenantSettings {
+  discountType: DiscountType;
+}
+
 export interface DashboardSummary {
   todayRevenue: number;
   todayCustomers: number;
   todayInvoices: number;
   todayExpenses: number;
   todayProfit: number;
+  todayDiscounts: number;
   weekRevenue: number;
   monthRevenue: number;
   yearRevenue: number;
@@ -120,7 +127,7 @@ export interface CartItem {
   name: string;
   quantity: number;
   unitPrice: number;
-  discountAmount: number;
+  discountValue: number;
 }
 
 export interface Invoice {
@@ -133,6 +140,8 @@ export interface Invoice {
   cashierId: string;
   cashierName: string;
   subTotal: number;
+  discountType: DiscountType;
+  discountValue: number;
   discountAmount: number;
   taxAmount: number;
   totalAmount: number;
@@ -148,6 +157,7 @@ export interface InvoiceItem {
   name: string;
   quantity: number;
   unitPrice: number;
+  discountValue: number;
   discountAmount: number;
   lineTotal: number;
   employeeName?: string;
@@ -162,6 +172,8 @@ export interface Receipt {
   date: string;
   items: { name: string; quantity: number; unitPrice: number; lineTotal: number }[];
   subTotal: number;
+  discountType: DiscountType;
+  discountValue: number;
   discountAmount: number;
   taxAmount: number;
   total: number;

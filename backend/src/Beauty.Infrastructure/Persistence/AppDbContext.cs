@@ -1,5 +1,6 @@
 using Beauty.Application.Interfaces;
 using Beauty.Domain.Entities;
+using Beauty.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace Beauty.Infrastructure.Persistence;
@@ -23,6 +24,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
     public DbSet<Expense> Expenses => Set<Expense>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -63,6 +65,11 @@ public class AppDbContext : DbContext, IAppDbContext
             entity.HasOne(i => i.Branch).WithMany(b => b.Invoices).HasForeignKey(i => i.BranchId);
             entity.HasOne(i => i.Customer).WithMany(c => c.Invoices).HasForeignKey(i => i.CustomerId);
             entity.HasOne(i => i.Cashier).WithMany(u => u.Invoices).HasForeignKey(i => i.CashierId);
+            entity.Property(i => i.DiscountType)
+                .HasConversion(
+                    v => v == DiscountType.Fixed ? "FIXED" : "PERCENTAGE",
+                    v => v == "FIXED" ? DiscountType.Fixed : DiscountType.Percentage)
+                .HasMaxLength(20);
         });
 
         modelBuilder.Entity<InvoiceItem>(entity =>
@@ -78,6 +85,17 @@ public class AppDbContext : DbContext, IAppDbContext
         modelBuilder.Entity<Expense>(entity =>
         {
             entity.HasOne(e => e.Branch).WithMany(b => b.Expenses).HasForeignKey(e => e.BranchId);
+        });
+
+        modelBuilder.Entity<TenantSettings>(entity =>
+        {
+            entity.HasIndex(s => s.TenantId).IsUnique();
+            entity.Property(s => s.DiscountType)
+                .HasConversion(
+                    v => v == DiscountType.Fixed ? "FIXED" : "PERCENTAGE",
+                    v => v == "FIXED" ? DiscountType.Fixed : DiscountType.Percentage)
+                .HasMaxLength(20);
+            entity.HasOne(s => s.Tenant).WithMany().HasForeignKey(s => s.TenantId);
         });
     }
 }

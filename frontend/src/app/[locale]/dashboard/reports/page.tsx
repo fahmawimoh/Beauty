@@ -14,6 +14,7 @@ interface PeriodReport {
   totalRevenue: number;
   totalExpenses: number;
   netProfit: number;
+  totalDiscounts: number;
   invoiceCount: number;
   customerCount: number;
   averageInvoiceValue: number;
@@ -42,6 +43,7 @@ export default function ReportsPage() {
         { label: t("revenue"), value: fmt(report.totalRevenue), color: "text-violet-600" },
         { label: t("expenses"), value: fmt(report.totalExpenses), color: "text-red-500" },
         { label: t("netProfit"), value: fmt(report.netProfit), color: report.netProfit >= 0 ? "text-emerald-600" : "text-red-500" },
+        { label: t("totalDiscounts"), value: fmt(report.totalDiscounts), color: "text-amber-600" },
         { label: t("avgInvoice"), value: fmt(report.averageInvoiceValue), color: "text-slate-900" },
       ]
     : [];
@@ -65,7 +67,7 @@ export default function ReportsPage() {
 
       {report && (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             {stats.map((s) => (
               <Card key={s.label}>
                 <CardContent className="pt-4">

@@ -11,6 +11,8 @@ public class Invoice : BaseEntity
     public Guid? CustomerId { get; set; }
     public Guid CashierId { get; set; }
     public decimal SubTotal { get; set; }
+    public DiscountType DiscountType { get; set; } = DiscountType.Percentage;
+    public decimal DiscountValue { get; set; }
     public decimal DiscountAmount { get; set; }
     public decimal TaxAmount { get; set; }
     public decimal TotalAmount { get; set; }
