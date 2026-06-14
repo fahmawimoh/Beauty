@@ -25,6 +25,16 @@ public class UsersController : ControllerBase
     public async Task<ActionResult<ApiResponse<IReadOnlyList<EmployeeDto>>>> GetAll(CancellationToken ct)
         => Ok(ApiResponse<IReadOnlyList<EmployeeDto>>.Ok(await _employeeService.GetAllAsync(ct)));
 
+    [HttpGet("roles")]
+    [AllowAnonymous]
+    public ActionResult<ApiResponse<object>> GetRoles()
+        => Ok(ApiResponse<object>.Ok(new[]
+        {
+            new { value = UserRole.Admin, label = "Admin", description = "Full system access" },
+            new { value = UserRole.Manager, label = "Manager", description = "Reports and management access" },
+            new { value = UserRole.Cashier, label = "Cashier", description = "POS access only" }
+        }));
+
     [HttpGet("{id:guid}")]
     [Authorize(Policy = AuthorizationPolicies.ManagerOrAdmin)]
     public async Task<ActionResult<ApiResponse<EmployeeDto>>> GetById(Guid id, CancellationToken ct)
@@ -86,10 +96,15 @@ public class UsersController : ControllerBase
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<ActionResult<ApiResponse<bool>>> ChangePassword(Guid id, [FromBody] ChangeUserPasswordRequest request, CancellationToken ct)
     {
+        if (request is null || string.IsNullOrWhiteSpace(request.NewPassword))
+            return BadRequest(ApiResponse<bool>.Fail("New password is required."));
+
         try
         {
-            await _employeeService.ChangePasswordAsync(id, request, ct);
-            return Ok(ApiResponse<bool>.Ok(true, "Password changed successfully"));
+            var changed = await _employeeService.ChangePasswordAsync(id, request, ct);
+            return changed
+                ? Ok(ApiResponse<bool>.Ok(true, "Password changed successfully"))
+                : NotFound(ApiResponse<bool>.Fail("User not found"));
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -100,14 +115,4 @@ public class UsersController : ControllerBase
             return BadRequest(ApiResponse<bool>.Fail(ex.Message));
         }
     }
-
-    [HttpGet("roles")]
-    [AllowAnonymous]
-    public ActionResult<ApiResponse<object>> GetRoles()
-        => Ok(ApiResponse<object>.Ok(new[]
-        {
-            new { value = UserRole.Admin, label = "Admin", description = "Full system access" },
-            new { value = UserRole.Manager, label = "Manager", description = "Reports and management access" },
-            new { value = UserRole.Cashier, label = "Cashier", description = "POS access only" }
-        }));
 }

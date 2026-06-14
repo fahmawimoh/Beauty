@@ -60,8 +60,12 @@ class ApiClient {
       throw new Error(json.message || "Unauthorized");
     }
 
-    if (!res.ok || !json.success) {
-      throw new Error(json.message || `Request failed: ${res.status}`);
+    if (!res.ok) {
+      const message = json.message || `Request failed: ${res.status}`;
+      throw new Error(message);
+    }
+    if (!json.success) {
+      throw new Error(json.message || "Request failed");
     }
     return json.data as T;
   }

@@ -142,14 +142,14 @@ public class EmployeeService : IEmployeeService
         return true;
     }
 
-    public async Task ChangePasswordAsync(Guid userId, ChangeUserPasswordRequest request, CancellationToken cancellationToken = default)
+    public async Task<bool> ChangePasswordAsync(Guid userId, ChangeUserPasswordRequest request, CancellationToken cancellationToken = default)
     {
         var tenantId = RequireTenantId();
         var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException();
 
         var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Id == userId && u.TenantId == tenantId && u.IsActive, cancellationToken)
-            ?? throw new InvalidOperationException("User not found.");
+            .FirstOrDefaultAsync(u => u.Id == userId && u.TenantId == tenantId && u.IsActive, cancellationToken);
+        if (user is null) return false;
 
         if (userId != currentUserId)
         {
@@ -172,6 +172,7 @@ public class EmployeeService : IEmployeeService
         user.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("ChangePassword", "User", user.Id, user.Email, cancellationToken);
+        return true;
     }
 
     public async Task<IReadOnlyList<EmployeePerformanceDto>> GetPerformanceAsync(Guid? branchId = null, DateTime? from = null, DateTime? to = null, CancellationToken cancellationToken = default)
