@@ -8,13 +8,12 @@ import { BranchSwitcher } from "./branch-switcher";
 import { LanguageSwitcher } from "./language-switcher";
 import { LogoutButton } from "./logout-button";
 import { ToastContainer } from "@/components/ui/toast-container";
-import { useAuthStore, useSettingsStore } from "@/lib/store";
+import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { performLogout } from "@/lib/auth";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
-  const loadSettings = useSettingsStore((s) => s.loadSettings);
   const router = useRouter();
   const locale = useLocale();
 
@@ -32,7 +31,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
     if (token) {
       api.setToken(token);
-      void loadSettings().catch(console.error);
     } else if (isAuthenticated) {
       void performLogout();
       router.replace("/login");
@@ -44,7 +42,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     }
 
     return () => api.setUnauthorizedHandler(null);
-  }, [isAuthenticated, router, locale, loadSettings]);
+  }, [isAuthenticated, router, locale]);
 
   if (!isAuthenticated) {
     return (

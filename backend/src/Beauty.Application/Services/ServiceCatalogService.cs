@@ -29,7 +29,7 @@ public class ServiceCatalogService : IServiceCatalogService
                 c.Description,
                 c.SortOrder,
                 c.IsActive,
-                c.ServiceOfferings.Count(s => s.IsActive)))
+                c.ServiceOfferingCategories.Count(soc => soc.ServiceOffering.IsActive)))
             .ToListAsync(cancellationToken);
     }
 
@@ -60,52 +60,60 @@ public class ServiceCatalogService : IServiceCatalogService
     public async Task<IReadOnlyList<ServiceOfferingDto>> GetOfferingsAsync(Guid? categoryId = null, CancellationToken cancellationToken = default)
     {
         var query = _context.ServiceOfferings
-            .Include(s => s.Category)
+            .Include(s => s.ServiceOfferingCategories)
+                .ThenInclude(soc => soc.Category)
             .Where(s => s.TenantId == RequireTenantId() && s.IsActive);
 
         if (categoryId.HasValue)
-            query = query.Where(s => s.CategoryId == categoryId);
+            query = query.Where(s => s.ServiceOfferingCategories.Any(soc => soc.CategoryId == categoryId));
 
-        return await query
-            .OrderBy(s => s.Name)
-            .Select(s => new ServiceOfferingDto(s.Id, s.CategoryId, s.Category != null ? s.Category.Name : null,
-                s.Name, s.Description, s.Price, s.DurationMinutes, s.IsActive))
-            .ToListAsync(cancellationToken);
+        var offerings = await query.OrderBy(s => s.Name).ToListAsync(cancellationToken);
+        return offerings.Select(MapOfferingToDto).ToList();
+    }
+
+    public async Task<ServiceOfferingDto?> GetOfferingByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var offering = await _context.ServiceOfferings
+            .Include(s => s.ServiceOfferingCategories)
+                .ThenInclude(soc => soc.Category)
+            .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == RequireTenantId() && s.IsActive, cancellationToken);
+
+        return offering is null ? null : MapOfferingToDto(offering);
     }
 
     public async Task<ServiceOfferingDto> CreateOfferingAsync(CreateServiceOfferingRequest request, CancellationToken cancellationToken = default)
     {
+        var tenantId = RequireTenantId();
+        ValidateOfferingFields(request.Name, request.Price, request.DurationMinutes);
+        var categoryIds = await ValidateCategoryIdsAsync(request.CategoryIds, tenantId, cancellationToken);
+
         var offering = new ServiceOffering
         {
-            TenantId = RequireTenantId(),
-            CategoryId = request.CategoryId,
-            Name = request.Name,
-            Description = request.Description,
+            TenantId = tenantId,
+            Name = request.Name.Trim(),
+            Description = request.Description?.Trim(),
             Price = request.Price,
             DurationMinutes = request.DurationMinutes
         };
 
+        foreach (var categoryId in categoryIds)
+        {
+            offering.ServiceOfferingCategories.Add(new ServiceOfferingCategory { CategoryId = categoryId });
+        }
+
         _context.ServiceOfferings.Add(offering);
         await _context.SaveChangesAsync(cancellationToken);
 
-        string? categoryName = null;
-        if (request.CategoryId.HasValue)
-        {
-            categoryName = await _context.ServiceCategories
-                .Where(c => c.Id == request.CategoryId)
-                .Select(c => c.Name)
-                .FirstOrDefaultAsync(cancellationToken);
-        }
-
-        return new ServiceOfferingDto(offering.Id, offering.CategoryId, categoryName,
-            offering.Name, offering.Description, offering.Price, offering.DurationMinutes, offering.IsActive);
+        return await LoadOfferingDtoAsync(offering.Id, cancellationToken)
+            ?? throw new InvalidOperationException("Failed to load created service.");
     }
 
     public async Task<ServiceCategoryDto?> UpdateCategoryAsync(Guid id, UpdateServiceCategoryRequest request, CancellationToken cancellationToken = default)
     {
         var tenantId = RequireTenantId();
         var category = await _context.ServiceCategories
-            .Include(c => c.ServiceOfferings)
+            .Include(c => c.ServiceOfferingCategories)
+                .ThenInclude(soc => soc.ServiceOffering)
             .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId && c.IsActive, cancellationToken);
         if (category is null) return null;
 
@@ -124,48 +132,32 @@ public class ServiceCatalogService : IServiceCatalogService
         await _auditService.LogAsync("Update", "ServiceCategory", category.Id, category.Name, cancellationToken);
 
         return new ServiceCategoryDto(category.Id, category.Name, category.Description, category.SortOrder, category.IsActive,
-            category.ServiceOfferings.Count(s => s.IsActive));
+            category.ServiceOfferingCategories.Count(soc => soc.ServiceOffering.IsActive));
     }
 
     public async Task<ServiceOfferingDto?> UpdateOfferingAsync(Guid id, UpdateServiceOfferingRequest request, CancellationToken cancellationToken = default)
     {
         var tenantId = RequireTenantId();
         var offering = await _context.ServiceOfferings
+            .Include(s => s.ServiceOfferingCategories)
             .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == tenantId && s.IsActive, cancellationToken);
         if (offering is null) return null;
 
-        var name = request.Name.Trim();
-        if (string.IsNullOrWhiteSpace(name))
-            throw new InvalidOperationException("Service name is required.");
-        if (request.Price <= 0)
-            throw new InvalidOperationException("Price must be greater than zero.");
-        if (request.DurationMinutes <= 0)
-            throw new InvalidOperationException("Duration must be greater than zero.");
+        ValidateOfferingFields(request.Name, request.Price, request.DurationMinutes);
+        var categoryIds = await ValidateCategoryIdsAsync(request.CategoryIds, tenantId, cancellationToken);
 
-        if (request.CategoryId.HasValue &&
-            !await _context.ServiceCategories.AnyAsync(c => c.Id == request.CategoryId && c.TenantId == tenantId && c.IsActive, cancellationToken))
-            throw new InvalidOperationException("Selected category does not exist.");
-
-        offering.Name = name;
+        offering.Name = request.Name.Trim();
         offering.Description = request.Description?.Trim();
         offering.Price = request.Price;
         offering.DurationMinutes = request.DurationMinutes;
-        offering.CategoryId = request.CategoryId;
         offering.UpdatedAt = DateTime.UtcNow;
+
+        SyncOfferingCategories(offering, categoryIds);
+
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Update", "ServiceOffering", offering.Id, offering.Name, cancellationToken);
 
-        string? categoryName = null;
-        if (offering.CategoryId.HasValue)
-        {
-            categoryName = await _context.ServiceCategories
-                .Where(c => c.Id == offering.CategoryId)
-                .Select(c => c.Name)
-                .FirstOrDefaultAsync(cancellationToken);
-        }
-
-        return new ServiceOfferingDto(offering.Id, offering.CategoryId, categoryName,
-            offering.Name, offering.Description, offering.Price, offering.DurationMinutes, offering.IsActive);
+        return await LoadOfferingDtoAsync(offering.Id, cancellationToken);
     }
 
     public async Task<bool> DeleteOfferingAsync(Guid id, CancellationToken cancellationToken = default)
@@ -184,29 +176,104 @@ public class ServiceCatalogService : IServiceCatalogService
     public async Task<bool> DeleteCategoryAsync(Guid id, bool cascade = false, CancellationToken cancellationToken = default)
     {
         var category = await _context.ServiceCategories
-            .Include(c => c.ServiceOfferings)
+            .Include(c => c.ServiceOfferingCategories)
+                .ThenInclude(soc => soc.ServiceOffering)
             .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == RequireTenantId() && c.IsActive, cancellationToken);
         if (category is null) return false;
 
-        var activeServices = category.ServiceOfferings.Where(s => s.IsActive).ToList();
-        if (activeServices.Count > 0 && !cascade)
-            throw new InvalidOperationException($"Category contains {activeServices.Count} active service(s). Remove or reassign them first, or enable cascade delete.");
+        var linkedActiveServices = category.ServiceOfferingCategories
+            .Where(soc => soc.ServiceOffering.IsActive)
+            .Select(soc => soc.ServiceOffering)
+            .Distinct()
+            .ToList();
 
-        if (activeServices.Count > 0)
-        {
-            foreach (var service in activeServices)
-            {
-                service.IsActive = false;
-                service.UpdatedAt = DateTime.UtcNow;
-                await _auditService.LogAsync("Delete", "ServiceOffering", service.Id, service.Name, cancellationToken);
-            }
-        }
+        if (linkedActiveServices.Count > 0 && !cascade)
+            throw new InvalidOperationException($"Category contains {linkedActiveServices.Count} active service(s). Remove or reassign them first, or enable cascade delete.");
+
+        if (linkedActiveServices.Count > 0)
+            _context.ServiceOfferingCategories.RemoveRange(category.ServiceOfferingCategories);
 
         category.IsActive = false;
         category.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Delete", "ServiceCategory", category.Id, category.Name, cancellationToken);
         return true;
+    }
+
+    private static ServiceOfferingDto MapOfferingToDto(ServiceOffering offering)
+    {
+        var categories = offering.ServiceOfferingCategories
+            .Where(soc => soc.Category.IsActive)
+            .OrderBy(soc => soc.Category.SortOrder)
+            .ThenBy(soc => soc.Category.Name)
+            .Select(soc => new ServiceOfferingCategoryRefDto(soc.CategoryId, soc.Category.Name))
+            .ToList();
+
+        return new ServiceOfferingDto(
+            offering.Id,
+            categories,
+            offering.Name,
+            offering.Description,
+            offering.Price,
+            offering.DurationMinutes,
+            offering.IsActive);
+    }
+
+    private async Task<ServiceOfferingDto?> LoadOfferingDtoAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var offering = await _context.ServiceOfferings
+            .Include(s => s.ServiceOfferingCategories)
+                .ThenInclude(soc => soc.Category)
+            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+
+        return offering is null ? null : MapOfferingToDto(offering);
+    }
+
+    private static void SyncOfferingCategories(ServiceOffering offering, IReadOnlyList<Guid> categoryIds)
+    {
+        var desired = categoryIds.ToHashSet();
+        var existing = offering.ServiceOfferingCategories.ToList();
+
+        foreach (var link in existing.Where(l => !desired.Contains(l.CategoryId)))
+            offering.ServiceOfferingCategories.Remove(link);
+
+        var existingIds = offering.ServiceOfferingCategories.Select(l => l.CategoryId).ToHashSet();
+        foreach (var categoryId in desired.Where(id => !existingIds.Contains(id)))
+        {
+            offering.ServiceOfferingCategories.Add(new ServiceOfferingCategory
+            {
+                ServiceOfferingId = offering.Id,
+                CategoryId = categoryId
+            });
+        }
+    }
+
+    private static void ValidateOfferingFields(string name, decimal price, int durationMinutes)
+    {
+        if (string.IsNullOrWhiteSpace(name.Trim()))
+            throw new InvalidOperationException("Service name is required.");
+        if (price <= 0)
+            throw new InvalidOperationException("Price must be greater than zero.");
+        if (durationMinutes <= 0)
+            throw new InvalidOperationException("Duration must be greater than zero.");
+    }
+
+    private async Task<IReadOnlyList<Guid>> ValidateCategoryIdsAsync(
+        IReadOnlyList<Guid>? categoryIds,
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var distinctIds = (categoryIds ?? []).Distinct().ToList();
+        if (distinctIds.Count == 0)
+            return distinctIds;
+
+        var validCount = await _context.ServiceCategories
+            .CountAsync(c => distinctIds.Contains(c.Id) && c.TenantId == tenantId && c.IsActive, cancellationToken);
+
+        if (validCount != distinctIds.Count)
+            throw new InvalidOperationException("One or more selected categories do not exist.");
+
+        return distinctIds;
     }
 
     private Guid RequireTenantId() => _currentUser.TenantId ?? throw new UnauthorizedAccessException();

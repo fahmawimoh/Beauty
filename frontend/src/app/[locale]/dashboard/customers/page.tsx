@@ -2,18 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { Plus, Search, Pencil, Trash2, X } from "lucide-react";
+import { Plus, Search, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Card, CardContent } from "@/components/ui/card";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { api } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
-import { usePhoneValidation, formatPhoneDisplay, isPhoneValidationMessage, resolvePhoneApiError } from "@/lib/phone";
+import { usePhoneValidation, formatPhoneDisplay } from "@/lib/phone";
 import { useApiError } from "@/lib/errors";
-import { useAuthStore } from "@/lib/store";
-import { toast } from "@/lib/toast";
 import type { Customer } from "@/types";
 
 type CustomerForm = { name: string; phone: string; email: string; notes: string };
@@ -24,12 +21,8 @@ export default function CustomersPage() {
   const t = useTranslations("customers");
   const tCommon = useTranslations("common");
   const locale = useLocale();
-  const { user } = useAuthStore();
-  const tValidation = useTranslations("validation");
-  const { validatePhone, validatePhoneUnique, normalizePhone } = usePhoneValidation();
+  const { validatePhone } = usePhoneValidation();
   const getError = useApiError();
-
-  const canManage = user?.role === "Admin" || user?.role === "Manager";
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
@@ -39,8 +32,6 @@ export default function CustomersPage() {
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
   const load = () =>
     api.get<{ items: Customer[] }>(`/customers?search=${encodeURIComponent(search)}&pageSize=50`).then((r) => setCustomers(r.items));
@@ -70,23 +61,15 @@ export default function CustomersPage() {
     setShowForm(true);
   };
 
-  const getPhoneError = (phone: string) => {
-    const formatError = validatePhone(phone, true);
-    if (formatError) return formatError;
-    return validatePhoneUnique(phone, customers, editingId);
-  };
-
   const handlePhoneChange = (phone: string) => {
-    const normalized = normalizePhone(phone);
-    setForm((f) => ({ ...f, phone: normalized }));
-    setPhoneError(getPhoneError(normalized));
+    setForm((f) => ({ ...f, phone }));
+    setPhoneError(validatePhone(phone, true));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError("");
-    const normalizedPhone = normalizePhone(form.phone);
-    const phoneValidation = getPhoneError(normalizedPhone);
+    const phoneValidation = validatePhone(form.phone, true);
     setPhoneError(phoneValidation);
     if (phoneValidation || !form.name.trim()) return;
 
@@ -94,7 +77,7 @@ export default function CustomersPage() {
     try {
       const payload = {
         name: form.name.trim(),
-        phone: normalizedPhone,
+        phone: form.phone,
         email: form.email.trim() || null,
         notes: form.notes.trim() || null,
       };
@@ -103,36 +86,13 @@ export default function CustomersPage() {
       resetForm();
       load();
     } catch (err) {
-      const message = getError(err, t("saveFailed"));
-      if (isPhoneValidationMessage(message)) {
-        setPhoneError(resolvePhoneApiError(message, tValidation));
-        setSubmitError("");
-      } else {
-        setSubmitError(message);
-      }
+      setSubmitError(getError(err, t("saveFailed")));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-
-    setDeleting(true);
-    try {
-      await api.delete(`/customers/${deleteTarget.id}`);
-      if (editingId === deleteTarget.id) resetForm();
-      setDeleteTarget(null);
-      await load();
-      toast("success", t("customerDeleted"));
-    } catch (err) {
-      toast("error", getError(err, tCommon("deleteFailed")));
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const isFormValid = form.name.trim().length > 0 && !getPhoneError(normalizePhone(form.phone));
+  const isFormValid = form.name.trim().length > 0 && !validatePhone(form.phone, true);
   const dateLocale = locale === "ar" ? "ar-SA" : "en-US";
 
   return (
@@ -211,32 +171,9 @@ export default function CustomersPage() {
                 <td className="px-4 py-3">{formatCurrency(c.totalSpent)}</td>
                 <td className="px-4 py-3 text-slate-500">{c.lastVisitAt ? new Date(c.lastVisitAt).toLocaleDateString(dateLocale) : "—"}</td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-slate-600 hover:text-violet-700 hover:bg-violet-50"
-                      title={tCommon("edit")}
-                      aria-label={tCommon("edit")}
-                      onClick={() => openEdit(c)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    {canManage && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        title={t("deleteCustomer")}
-                        aria-label={t("deleteCustomer")}
-                        onClick={() => setDeleteTarget(c)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
+                  <button type="button" onClick={() => openEdit(c)} className="inline-flex items-center gap-1 text-violet-600 hover:text-violet-800 text-xs font-medium">
+                    <Pencil className="h-3.5 w-3.5" /> {tCommon("edit")}
+                  </button>
                 </td>
               </tr>
             ))}
@@ -244,18 +181,6 @@ export default function CustomersPage() {
         </table>
         {customers.length === 0 && <p className="text-center py-8 text-slate-400">{t("noCustomers")}</p>}
       </div>
-
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onClose={() => !deleting && setDeleteTarget(null)}
-        onConfirm={handleDelete}
-        title={t("deleteCustomerTitle")}
-        message={t("deleteCustomerMessage", { name: deleteTarget?.name ?? "" })}
-        confirmLabel={deleting ? tCommon("deleting") : tCommon("delete")}
-        cancelLabel={tCommon("cancel")}
-        loading={deleting}
-        variant="danger"
-      />
     </div>
   );
 }

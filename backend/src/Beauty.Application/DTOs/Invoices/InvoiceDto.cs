@@ -12,8 +12,6 @@ public record InvoiceDto(
     Guid CashierId,
     string CashierName,
     decimal SubTotal,
-    string DiscountType,
-    decimal DiscountValue,
     decimal DiscountAmount,
     decimal TaxAmount,
     decimal TotalAmount,
@@ -33,7 +31,6 @@ public record InvoiceItemDto(
     string Name,
     int Quantity,
     decimal UnitPrice,
-    decimal DiscountValue,
     decimal DiscountAmount,
     decimal LineTotal
 );
@@ -46,13 +43,13 @@ public record CreateInvoiceItemRequest(
     string Name,
     int Quantity,
     decimal UnitPrice,
-    decimal DiscountValue = 0
+    decimal DiscountAmount = 0
 );
 
 public record CreateInvoiceRequest(
     Guid BranchId,
     Guid? CustomerId,
-    decimal DiscountValue = 0,
+    decimal DiscountAmount = 0,
     decimal TaxAmount = 0,
     string? Notes = null,
     IReadOnlyList<CreateInvoiceItemRequest>? Items = null
@@ -67,8 +64,6 @@ public record ReceiptDto(
     DateTime Date,
     IReadOnlyList<ReceiptItemDto> Items,
     decimal SubTotal,
-    string DiscountType,
-    decimal DiscountValue,
     decimal DiscountAmount,
     decimal TaxAmount,
     decimal Total

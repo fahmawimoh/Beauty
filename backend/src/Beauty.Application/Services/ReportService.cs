@@ -35,7 +35,6 @@ public class ReportService : IReportService
         var todayInvoices = invoiceQuery.Where(i => i.CreatedAt >= today);
         var todayRevenue = await todayInvoices.SumAsync(i => i.TotalAmount, cancellationToken);
         var todayInvoiceCount = await todayInvoices.CountAsync(cancellationToken);
-        var todayDiscounts = await todayInvoices.SumAsync(i => i.DiscountAmount, cancellationToken);
         var todayCustomers = await todayInvoices.Where(i => i.CustomerId != null)
             .Select(i => i.CustomerId).Distinct().CountAsync(cancellationToken);
         var todayExpenses = await expenseQuery.Where(e => e.ExpenseDate >= today)
@@ -60,7 +59,6 @@ public class ReportService : IReportService
 
         return new DashboardSummaryDto(
             todayRevenue, todayCustomers, todayInvoiceCount, todayExpenses, todayRevenue - todayExpenses,
-            todayDiscounts,
             await invoiceQuery.Where(i => i.CreatedAt >= weekStart).SumAsync(i => i.TotalAmount, cancellationToken),
             await invoiceQuery.Where(i => i.CreatedAt >= monthStart).SumAsync(i => i.TotalAmount, cancellationToken),
             await invoiceQuery.Where(i => i.CreatedAt >= yearStart).SumAsync(i => i.TotalAmount, cancellationToken),
@@ -80,7 +78,6 @@ public class ReportService : IReportService
 
         var invoices = await invoiceQuery.ToListAsync(cancellationToken);
         var totalRevenue = invoices.Sum(i => i.TotalAmount);
-        var totalDiscounts = invoices.Sum(i => i.DiscountAmount);
 
         var expenseQuery = _context.Expenses
             .Where(e => e.TenantId == tenantId && e.ExpenseDate >= start && e.ExpenseDate <= end);
@@ -104,7 +101,6 @@ public class ReportService : IReportService
 
         return new PeriodReportDto(
             period, start, end, totalRevenue, totalExpenses, totalRevenue - totalExpenses,
-            totalDiscounts,
             invoices.Count, invoices.Where(i => i.CustomerId != null).Select(i => i.CustomerId).Distinct().Count(),
             invoices.Count > 0 ? totalRevenue / invoices.Count : 0,
             salesByCategory, salesByEmployee);

@@ -4,8 +4,6 @@ namespace Beauty.Application.Common;
 
 public static partial class PhoneNumberValidator
 {
-    public const string DuplicatePhoneError = "Phone number already exists.";
-
     private const int MinDigits = 7;
     private const int MaxDigits = 15;
 
@@ -14,7 +12,7 @@ public static partial class PhoneNumberValidator
         if (string.IsNullOrWhiteSpace(phone))
             return null;
 
-        var digits = NonDigitRegex().Replace(phone.Trim(), "");
+        var digits = DigitsOnlyRegex().Replace(phone, "");
         return string.IsNullOrEmpty(digits) ? null : digits;
     }
 
@@ -61,9 +59,6 @@ public static partial class PhoneNumberValidator
 
         return normalized!;
     }
-
-    [GeneratedRegex(@"\D")]
-    private static partial Regex NonDigitRegex();
 
     [GeneratedRegex(@"^\d+$")]
     private static partial Regex DigitsOnlyRegex();

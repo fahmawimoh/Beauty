@@ -63,7 +63,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AuditLogs");
+                    b.ToTable("AuditLogs", (string)null);
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Branch", b =>
@@ -104,7 +104,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.ToTable("Branches");
+                    b.ToTable("Branches", (string)null);
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Customer", b =>
@@ -150,7 +150,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("\"Phone\" IS NOT NULL");
 
-                    b.ToTable("Customers");
+                    b.ToTable("Customers", (string)null);
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Expense", b =>
@@ -194,7 +194,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.ToTable("Expenses");
+                    b.ToTable("Expenses", (string)null);
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.InventoryLog", b =>
@@ -239,7 +239,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("InventoryLogs");
+                    b.ToTable("InventoryLogs", (string)null);
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Invoice", b =>
@@ -310,7 +310,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "InvoiceNumber")
                         .IsUnique();
 
-                    b.ToTable("Invoices");
+                    b.ToTable("Invoices", (string)null);
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.InvoiceItem", b =>
@@ -369,7 +369,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ServiceOfferingId");
 
-                    b.ToTable("InvoiceItems");
+                    b.ToTable("InvoiceItems", (string)null);
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Product", b =>
@@ -422,7 +422,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId", "Sku", "BranchId");
 
-                    b.ToTable("Products");
+                    b.ToTable("Products", (string)null);
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Purchase", b =>
@@ -477,7 +477,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.ToTable("Purchases");
+                    b.ToTable("Purchases", (string)null);
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.ServiceCategory", b =>
@@ -512,16 +512,13 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.ToTable("ServiceCategories");
+                    b.ToTable("ServiceCategories", (string)null);
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.ServiceOffering", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("CategoryId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
@@ -551,11 +548,24 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CategoryId");
-
                     b.HasIndex("TenantId");
 
-                    b.ToTable("ServiceOfferings");
+                    b.ToTable("ServiceOfferings", (string)null);
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.ServiceOfferingCategory", b =>
+                {
+                    b.Property<Guid>("ServiceOfferingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ServiceOfferingId", "CategoryId");
+
+                    b.HasIndex("CategoryId");
+
+                    b.ToTable("ServiceOfferingCategories", (string)null);
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Supplier", b =>
@@ -596,7 +606,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.ToTable("Suppliers");
+                    b.ToTable("Suppliers", (string)null);
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Tenant", b =>
@@ -630,7 +640,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("Tenants");
+                    b.ToTable("Tenants", (string)null);
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.TenantSettings", b =>
@@ -658,7 +668,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId")
                         .IsUnique();
 
-                    b.ToTable("TenantSettings");
+                    b.ToTable("TenantSettings", (string)null);
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.User", b =>
@@ -706,7 +716,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "Email")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.UserBranch", b =>
@@ -724,7 +734,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("BranchId");
 
-                    b.ToTable("UserBranches");
+                    b.ToTable("UserBranches", (string)null);
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.AuditLog", b =>
@@ -931,19 +941,32 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Beauty.Domain.Entities.ServiceOffering", b =>
                 {
-                    b.HasOne("Beauty.Domain.Entities.ServiceCategory", "Category")
-                        .WithMany("ServiceOfferings")
-                        .HasForeignKey("CategoryId");
-
                     b.HasOne("Beauty.Domain.Entities.Tenant", "Tenant")
                         .WithMany("ServiceOfferings")
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.ServiceOfferingCategory", b =>
+                {
+                    b.HasOne("Beauty.Domain.Entities.ServiceCategory", "Category")
+                        .WithMany("ServiceOfferingCategories")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Beauty.Domain.Entities.ServiceOffering", "ServiceOffering")
+                        .WithMany("ServiceOfferingCategories")
+                        .HasForeignKey("ServiceOfferingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Category");
 
-                    b.Navigation("Tenant");
+                    b.Navigation("ServiceOffering");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Supplier", b =>
@@ -1024,7 +1047,12 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Beauty.Domain.Entities.ServiceCategory", b =>
                 {
-                    b.Navigation("ServiceOfferings");
+                    b.Navigation("ServiceOfferingCategories");
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.ServiceOffering", b =>
+                {
+                    b.Navigation("ServiceOfferingCategories");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Supplier", b =>

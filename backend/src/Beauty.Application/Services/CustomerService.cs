@@ -53,13 +53,11 @@ public class CustomerService : ICustomerService
 
     public async Task<CustomerDto> CreateAsync(CreateCustomerRequest request, CancellationToken cancellationToken = default)
     {
-        var tenantId = RequireTenantId();
         var phone = PhoneNumberValidator.ValidateAndNormalize(request.Phone, required: true);
-        await EnsurePhoneUniqueAsync(tenantId, phone, excludeCustomerId: null, cancellationToken);
 
         var customer = new Customer
         {
-            TenantId = tenantId,
+            TenantId = RequireTenantId(),
             Name = request.Name.Trim(),
             Phone = phone,
             Email = request.Email?.Trim(),
@@ -67,15 +65,7 @@ public class CustomerService : ICustomerService
         };
 
         _context.Customers.Add(customer);
-        try
-        {
-            await _context.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException ex) when (IsDuplicatePhoneViolation(ex))
-        {
-            throw new InvalidOperationException(PhoneNumberValidator.DuplicatePhoneError);
-        }
-
+        await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Create", "Customer", customer.Id, customer.Name, cancellationToken);
 
         return ToDto(customer);
@@ -83,29 +73,17 @@ public class CustomerService : ICustomerService
 
     public async Task<CustomerDto?> UpdateAsync(Guid id, UpdateCustomerRequest request, CancellationToken cancellationToken = default)
     {
-        var tenantId = RequireTenantId();
         var customer = await _context.Customers
-            .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId, cancellationToken);
+            .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == RequireTenantId(), cancellationToken);
         if (customer is null) return null;
 
-        var phone = PhoneNumberValidator.ValidateAndNormalize(request.Phone, required: true);
-        await EnsurePhoneUniqueAsync(tenantId, phone, excludeCustomerId: id, cancellationToken);
-
         customer.Name = request.Name.Trim();
-        customer.Phone = phone;
+        customer.Phone = PhoneNumberValidator.ValidateAndNormalize(request.Phone, required: true);
         customer.Email = request.Email?.Trim();
         customer.Notes = request.Notes?.Trim();
         customer.UpdatedAt = DateTime.UtcNow;
 
-        try
-        {
-            await _context.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException ex) when (IsDuplicatePhoneViolation(ex))
-        {
-            throw new InvalidOperationException(PhoneNumberValidator.DuplicatePhoneError);
-        }
-
+        await _context.SaveChangesAsync(cancellationToken);
         return ToDto(customer);
     }
 
@@ -117,31 +95,10 @@ public class CustomerService : ICustomerService
 
         _context.Customers.Remove(customer);
         await _context.SaveChangesAsync(cancellationToken);
-        await _auditService.LogAsync("Delete", "Customer", customer.Id, customer.Name, cancellationToken);
         return true;
     }
 
     private Guid RequireTenantId() => _currentUser.TenantId ?? throw new UnauthorizedAccessException();
-
-    private async Task EnsurePhoneUniqueAsync(
-        Guid tenantId, string phone, Guid? excludeCustomerId, CancellationToken cancellationToken)
-    {
-        var duplicate = await _context.Customers.AnyAsync(
-            c => c.TenantId == tenantId
-                && c.Phone == phone
-                && (excludeCustomerId == null || c.Id != excludeCustomerId),
-            cancellationToken);
-
-        if (duplicate)
-            throw new InvalidOperationException(PhoneNumberValidator.DuplicatePhoneError);
-    }
-
-    private static bool IsDuplicatePhoneViolation(DbUpdateException ex)
-    {
-        var message = ex.InnerException?.Message ?? ex.Message;
-        return message.Contains("IX_Customers_TenantId_Phone", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase);
-    }
 
     private static CustomerDto ToDto(Customer c) =>
         new(c.Id, c.Name, c.Phone, c.Email, c.Notes, c.VisitCount, c.TotalSpent, c.LastVisitAt);

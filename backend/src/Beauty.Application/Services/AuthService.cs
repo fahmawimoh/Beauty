@@ -57,11 +57,6 @@ public class AuthService : IAuthService
         _context.Branches.Add(branch);
         _context.Users.Add(user);
         _context.UserBranches.Add(new UserBranch { User = user, Branch = branch, IsDefault = true });
-        _context.TenantSettings.Add(new TenantSettings
-        {
-            Tenant = tenant,
-            DiscountType = DiscountType.Percentage
-        });
 
         await SeedDefaultCatalogAsync(tenant, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);

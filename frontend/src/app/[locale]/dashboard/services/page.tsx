@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, Trash2, FolderOpen, Scissors, Pencil } from "lucide-react";
+import { Plus, Trash2, FolderOpen, Scissors, Pencil, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FormDialog } from "@/components/ui/form-dialog";
+import { Dialog } from "@/components/ui/dialog";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { api } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { useApiError } from "@/lib/errors";
@@ -18,6 +20,21 @@ import type { ServiceCategory, ServiceOffering } from "@/types";
 type DeleteTarget =
   | { type: "service"; item: ServiceOffering }
   | { type: "category"; item: ServiceCategory };
+
+function CategoryChips({ categories, emptyLabel }: { categories: ServiceOffering["categories"]; emptyLabel: string }) {
+  if (categories.length === 0) {
+    return <span className="text-slate-400">{emptyLabel}</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {categories.map((c) => (
+        <span key={c.id} className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">
+          {c.name}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return <label className="block text-sm font-medium text-slate-700 mb-1.5">{children}</label>;
@@ -44,10 +61,11 @@ export default function ServicesPage() {
   const [cascadeDelete, setCascadeDelete] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null);
   const [editingService, setEditingService] = useState<ServiceOffering | null>(null);
+  const [viewingService, setViewingService] = useState<ServiceOffering | null>(null);
   const [catForm, setCatForm] = useState({ name: "", description: "" });
-  const [svcForm, setSvcForm] = useState({ name: "", price: "", categoryId: "", durationMinutes: "30", description: "" });
+  const [svcForm, setSvcForm] = useState({ name: "", price: "", categoryIds: [] as string[], durationMinutes: "30", description: "" });
   const [editCatForm, setEditCatForm] = useState({ name: "", description: "" });
-  const [editSvcForm, setEditSvcForm] = useState({ name: "", price: "", categoryId: "", durationMinutes: "30", description: "" });
+  const [editSvcForm, setEditSvcForm] = useState({ name: "", price: "", categoryIds: [] as string[], durationMinutes: "30", description: "" });
   const [catErrors, setCatErrors] = useState<Record<string, string>>({});
   const [svcErrors, setSvcErrors] = useState<Record<string, string>>({});
   const loadSeq = useRef(0);
@@ -86,7 +104,7 @@ export default function ServicesPage() {
     setEditSvcForm({
       name: editingService.name,
       price: String(editingService.price),
-      categoryId: editingService.categoryId ?? "",
+      categoryIds: editingService.categories.map((c) => c.id),
       durationMinutes: String(editingService.durationMinutes),
       description: editingService.description ?? "",
     });
@@ -125,9 +143,19 @@ export default function ServicesPage() {
     }
   };
 
+  const validateServiceCategories = (categoryIds: string[]) => {
+    const validIds = new Set(categories.map((c) => c.id));
+    if (categoryIds.some((id) => !validIds.has(id))) {
+      return t("invalidCategories");
+    }
+    return undefined;
+  };
+
   const createOffering = async (e: React.FormEvent) => {
     e.preventDefault();
     const errors = validateService(svcForm);
+    const catError = validateServiceCategories(svcForm.categoryIds);
+    if (catError) errors.categories = catError;
     if (Object.keys(errors).length) { setSvcErrors(errors); return; }
     setSaving(true);
     try {
@@ -135,10 +163,10 @@ export default function ServicesPage() {
         name: svcForm.name.trim(),
         description: svcForm.description.trim() || null,
         price: Number(svcForm.price),
-        categoryId: svcForm.categoryId || null,
+        categoryIds: svcForm.categoryIds,
         durationMinutes: Number(svcForm.durationMinutes),
       });
-      setSvcForm({ name: "", price: "", categoryId: "", durationMinutes: "30", description: "" });
+      setSvcForm({ name: "", price: "", categoryIds: [], durationMinutes: "30", description: "" });
       setShowSvcForm(false);
       toast("success", t("serviceCreated"));
       await loadData();
@@ -179,6 +207,8 @@ export default function ServicesPage() {
     e.preventDefault();
     if (!editingService) return;
     const errors = validateService(editSvcForm);
+    const catError = validateServiceCategories(editSvcForm.categoryIds);
+    if (catError) errors.categories = catError;
     if (Object.keys(errors).length) { setSvcErrors(errors); return; }
     setSaving(true);
     try {
@@ -186,10 +216,11 @@ export default function ServicesPage() {
         name: editSvcForm.name.trim(),
         description: editSvcForm.description.trim() || null,
         price: Number(editSvcForm.price),
-        categoryId: editSvcForm.categoryId || null,
+        categoryIds: editSvcForm.categoryIds,
         durationMinutes: Number(editSvcForm.durationMinutes),
       });
       setEditingService(null);
+      setViewingService(null);
       toast("success", t("serviceUpdated"));
       await loadData();
     } catch (err) {
@@ -224,7 +255,21 @@ export default function ServicesPage() {
     }
   };
 
-  const rowActions = (onEdit: () => void, onDelete: () => void) => (
+  const serviceRowActions = (onView: () => void, onEdit: () => void, onDelete: () => void) => (
+    <div className="flex items-center justify-end gap-1">
+      <Button variant="ghost" size="sm" className="text-slate-600 hover:text-violet-700 hover:bg-violet-50" onClick={onView}>
+        <Eye className="h-4 w-4" />
+      </Button>
+      <Button variant="ghost" size="sm" className="text-slate-600 hover:text-violet-700 hover:bg-violet-50" onClick={onEdit}>
+        <Pencil className="h-4 w-4" />
+      </Button>
+      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={onDelete}>
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+
+  const categoryRowActions = (onEdit: () => void, onDelete: () => void) => (
     <div className="flex items-center justify-end gap-1">
       <Button variant="ghost" size="sm" className="text-slate-600 hover:text-violet-700 hover:bg-violet-50" onClick={onEdit}>
         <Pencil className="h-4 w-4" />
@@ -236,6 +281,7 @@ export default function ServicesPage() {
   );
 
   const categoryHasServices = deleteTarget?.type === "category" && deleteTarget.item.serviceCount > 0;
+  const categoryOptions = categories.map((c) => ({ id: c.id, label: c.name }));
 
   return (
     <div className="space-y-8">
@@ -296,11 +342,19 @@ export default function ServicesPage() {
                 <FieldError message={svcErrors.price} />
               </div>
               <div>
-                <FieldLabel>{tCommon("category")}</FieldLabel>
-                <select value={svcForm.categoryId} onChange={(e) => setSvcForm({ ...svcForm, categoryId: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20">
-                  <option value="">{t("noCategory")}</option>
-                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <FieldLabel>{t("selectCategories")}</FieldLabel>
+                <MultiSelect
+                  options={categoryOptions}
+                  value={svcForm.categoryIds}
+                  onChange={(categoryIds) => setSvcForm({ ...svcForm, categoryIds })}
+                  placeholder={t("selectCategoriesPlaceholder")}
+                  searchPlaceholder={t("searchCategories")}
+                  emptyMessage={t("noCategoriesAvailable")}
+                  noResultsMessage={t("noCategoryResults")}
+                  selectAllLabel={t("selectAllCategories")}
+                  clearAllLabel={t("clearAllCategories")}
+                />
+                <FieldError message={svcErrors.categories} />
               </div>
               <div>
                 <FieldLabel>{tCommon("durationMinutes")}</FieldLabel>
@@ -339,7 +393,7 @@ export default function ServicesPage() {
           emptyMessage={tCommon("noData")}
           loading={loading}
           actionsHeader={tCommon("actions")}
-          actions={(row) => rowActions(() => setEditingCategory(row), () => { setCascadeDelete(false); setDeleteTarget({ type: "category", item: row }); })}
+          actions={(row) => categoryRowActions(() => setEditingCategory(row), () => { setCascadeDelete(false); setDeleteTarget({ type: "category", item: row }); })}
         />
       </section>
 
@@ -352,18 +406,18 @@ export default function ServicesPage() {
         <DataTable
           columns={[
             { key: "name", header: tCommon("name"), sortable: true, sortValue: (r) => r.name, render: (r) => <span className="font-medium text-slate-900">{r.name}</span> },
-            { key: "category", header: tCommon("category"), sortable: true, sortValue: (r) => r.categoryName ?? "", render: (r) => r.categoryName ? <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">{r.categoryName}</span> : <span className="text-slate-400">{t("noCategory")}</span> },
+            { key: "category", header: tCommon("category"), sortable: true, sortValue: (r) => r.categories.map((c) => c.name).join(", "), render: (r) => <CategoryChips categories={r.categories} emptyLabel={t("noCategory")} /> },
             { key: "price", header: tCommon("price"), sortable: true, sortValue: (r) => r.price, render: (r) => <span className="font-semibold text-violet-600">{formatCurrency(r.price)}</span> },
             { key: "duration", header: tCommon("durationMinutes"), sortable: true, sortValue: (r) => r.durationMinutes, render: (r) => <span className="text-slate-500">{t("duration", { minutes: r.durationMinutes })}</span> },
           ]}
           data={offerings}
           keyExtractor={(r) => r.id}
           searchPlaceholder={t("searchServices")}
-          searchFilter={(r, q) => r.name.toLowerCase().includes(q) || (r.categoryName?.toLowerCase().includes(q) ?? false)}
+          searchFilter={(r, q) => r.name.toLowerCase().includes(q) || r.categories.some((c) => c.name.toLowerCase().includes(q))}
           emptyMessage={t("noServices")}
           loading={loading}
           actionsHeader={tCommon("actions")}
-          actions={(row) => rowActions(() => setEditingService(row), () => setDeleteTarget({ type: "service", item: row }))}
+          actions={(row) => serviceRowActions(() => setViewingService(row), () => setEditingService(row), () => setDeleteTarget({ type: "service", item: row }))}
         />
       </section>
 
@@ -416,11 +470,19 @@ export default function ServicesPage() {
             <FieldError message={svcErrors.duration} />
           </div>
           <div className="sm:col-span-2">
-            <FieldLabel>{tCommon("category")}</FieldLabel>
-            <select value={editSvcForm.categoryId} onChange={(e) => setEditSvcForm({ ...editSvcForm, categoryId: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20">
-              <option value="">{t("noCategory")}</option>
-              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <FieldLabel>{t("selectCategories")}</FieldLabel>
+            <MultiSelect
+              options={categoryOptions}
+              value={editSvcForm.categoryIds}
+              onChange={(categoryIds) => setEditSvcForm({ ...editSvcForm, categoryIds })}
+              placeholder={t("selectCategoriesPlaceholder")}
+              searchPlaceholder={t("searchCategories")}
+              emptyMessage={t("noCategoriesAvailable")}
+              noResultsMessage={t("noCategoryResults")}
+              selectAllLabel={t("selectAllCategories")}
+              clearAllLabel={t("clearAllCategories")}
+            />
+            <FieldError message={svcErrors.categories} />
           </div>
           <div className="sm:col-span-2">
             <FieldLabel>{tCommon("description")}</FieldLabel>
@@ -428,6 +490,43 @@ export default function ServicesPage() {
           </div>
         </div>
       </FormDialog>
+
+      <Dialog open={!!viewingService} onClose={() => setViewingService(null)} title={t("serviceDetails")} size="lg">
+        {viewingService && (
+          <div className="mt-4 space-y-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{t("serviceName")}</p>
+              <p className="mt-1 text-base font-semibold text-slate-900">{viewingService.name}</p>
+            </div>
+            {viewingService.description && (
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{tCommon("description")}</p>
+                <p className="mt-1 text-sm text-slate-600">{viewingService.description}</p>
+              </div>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{tCommon("price")}</p>
+                <p className="mt-1 text-sm font-semibold text-violet-600">{formatCurrency(viewingService.price)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{tCommon("durationMinutes")}</p>
+                <p className="mt-1 text-sm text-slate-600">{t("duration", { minutes: viewingService.durationMinutes })}</p>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">{t("selectCategories")}</p>
+              <CategoryChips categories={viewingService.categories} emptyLabel={t("noCategory")} />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setViewingService(null)}>{tCommon("cancel")}</Button>
+              <Button onClick={() => { setEditingService(viewingService); setViewingService(null); }}>
+                <Pencil className="h-4 w-4" /> {t("editService")}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
 
       <ConfirmDialog
         open={!!deleteTarget}

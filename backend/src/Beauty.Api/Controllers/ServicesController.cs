@@ -56,10 +56,28 @@ public class ServicesController : ControllerBase
     public async Task<ActionResult<ApiResponse<IReadOnlyList<ServiceOfferingDto>>>> GetOfferings([FromQuery] Guid? categoryId, CancellationToken ct)
         => Ok(ApiResponse<IReadOnlyList<ServiceOfferingDto>>.Ok(await _serviceCatalog.GetOfferingsAsync(categoryId, ct)));
 
+    [HttpGet("offerings/{id:guid}")]
+    public async Task<ActionResult<ApiResponse<ServiceOfferingDto>>> GetOffering(Guid id, CancellationToken ct)
+    {
+        var offering = await _serviceCatalog.GetOfferingByIdAsync(id, ct);
+        return offering is null
+            ? NotFound(ApiResponse<ServiceOfferingDto>.Fail("Service not found"))
+            : Ok(ApiResponse<ServiceOfferingDto>.Ok(offering));
+    }
+
     [HttpPost("offerings")]
     [RoleAuthorize(UserRole.Admin, UserRole.Manager)]
     public async Task<ActionResult<ApiResponse<ServiceOfferingDto>>> CreateOffering([FromBody] CreateServiceOfferingRequest request, CancellationToken ct)
-        => Ok(ApiResponse<ServiceOfferingDto>.Ok(await _serviceCatalog.CreateOfferingAsync(request, ct)));
+    {
+        try
+        {
+            return Ok(ApiResponse<ServiceOfferingDto>.Ok(await _serviceCatalog.CreateOfferingAsync(request, ct)));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<ServiceOfferingDto>.Fail(ex.Message));
+        }
+    }
 
     [HttpPut("offerings/{id:guid}")]
     [RoleAuthorize(UserRole.Admin, UserRole.Manager)]

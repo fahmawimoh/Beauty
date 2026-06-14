@@ -99,11 +99,6 @@ public static class DatabaseInitializer
         db.Branches.Add(branch);
         db.Users.Add(admin);
         db.UserBranches.Add(new UserBranch { User = admin, Branch = branch, IsDefault = true });
-        db.TenantSettings.Add(new TenantSettings
-        {
-            Tenant = tenant,
-            DiscountType = DiscountType.Percentage
-        });
 
         var categories = new[] { ("Hair", 0), ("Nails", 1), ("Skin Care", 2), ("Spa", 3) };
         foreach (var (name, order) in categories)

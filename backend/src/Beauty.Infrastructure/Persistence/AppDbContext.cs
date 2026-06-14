@@ -1,6 +1,6 @@
 using Beauty.Application.Interfaces;
+using Beauty.Application.Common;
 using Beauty.Domain.Entities;
-using Beauty.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace Beauty.Infrastructure.Persistence;
@@ -16,6 +16,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<ServiceCategory> ServiceCategories => Set<ServiceCategory>();
     public DbSet<ServiceOffering> ServiceOfferings => Set<ServiceOffering>();
+    public DbSet<ServiceOfferingCategory> ServiceOfferingCategories => Set<ServiceOfferingCategory>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<Purchase> Purchases => Set<Purchase>();
@@ -66,9 +67,7 @@ public class AppDbContext : DbContext, IAppDbContext
             entity.HasOne(i => i.Customer).WithMany(c => c.Invoices).HasForeignKey(i => i.CustomerId);
             entity.HasOne(i => i.Cashier).WithMany(u => u.Invoices).HasForeignKey(i => i.CashierId);
             entity.Property(i => i.DiscountType)
-                .HasConversion(
-                    v => v == DiscountType.Fixed ? "FIXED" : "PERCENTAGE",
-                    v => v == "FIXED" ? DiscountType.Fixed : DiscountType.Percentage)
+                .HasConversion(v => DiscountTypeMapper.ToApiValue(v), v => DiscountTypeMapper.FromApiValue(v))
                 .HasMaxLength(20);
         });
 
@@ -87,15 +86,24 @@ public class AppDbContext : DbContext, IAppDbContext
             entity.HasOne(e => e.Branch).WithMany(b => b.Expenses).HasForeignKey(e => e.BranchId);
         });
 
+        modelBuilder.Entity<ServiceOfferingCategory>(entity =>
+        {
+            entity.HasKey(soc => new { soc.ServiceOfferingId, soc.CategoryId });
+            entity.HasOne(soc => soc.ServiceOffering)
+                .WithMany(o => o.ServiceOfferingCategories)
+                .HasForeignKey(soc => soc.ServiceOfferingId);
+            entity.HasOne(soc => soc.Category)
+                .WithMany(c => c.ServiceOfferingCategories)
+                .HasForeignKey(soc => soc.CategoryId);
+        });
+
         modelBuilder.Entity<TenantSettings>(entity =>
         {
+            entity.HasOne(s => s.Tenant).WithMany().HasForeignKey(s => s.TenantId);
             entity.HasIndex(s => s.TenantId).IsUnique();
             entity.Property(s => s.DiscountType)
-                .HasConversion(
-                    v => v == DiscountType.Fixed ? "FIXED" : "PERCENTAGE",
-                    v => v == "FIXED" ? DiscountType.Fixed : DiscountType.Percentage)
+                .HasConversion(v => DiscountTypeMapper.ToApiValue(v), v => DiscountTypeMapper.FromApiValue(v))
                 .HasMaxLength(20);
-            entity.HasOne(s => s.Tenant).WithMany().HasForeignKey(s => s.TenantId);
         });
     }
 }

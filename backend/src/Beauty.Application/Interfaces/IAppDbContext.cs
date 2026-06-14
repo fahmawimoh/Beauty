@@ -12,6 +12,7 @@ public interface IAppDbContext
     DbSet<Customer> Customers { get; }
     DbSet<ServiceCategory> ServiceCategories { get; }
     DbSet<ServiceOffering> ServiceOfferings { get; }
+    DbSet<ServiceOfferingCategory> ServiceOfferingCategories { get; }
     DbSet<Product> Products { get; }
     DbSet<Supplier> Suppliers { get; }
     DbSet<Purchase> Purchases { get; }

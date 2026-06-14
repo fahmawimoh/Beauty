@@ -6,11 +6,9 @@ import { Search, Plus, Minus, Trash2, User, Scissors, Package, CreditCard, Print
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
-import { useAuthStore, usePosStore, useSettingsStore } from "@/lib/store";
+import { useAuthStore, usePosStore } from "@/lib/store";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useApiError } from "@/lib/errors";
-import { formatDiscountDisplay, validateDiscountValue } from "@/lib/discount";
-import { DiscountFieldLabel, DiscountInput } from "@/components/ui/discount-input";
 import type { Customer, ServiceCategory, ServiceOffering, Product, Receipt } from "@/types";
 
 type Tab = "services" | "products";
@@ -23,21 +21,7 @@ export default function PosPage() {
   const fmt = (amount: number) => formatCurrency(amount, locale);
   const getError = useApiError();
   const { user } = useAuthStore();
-  const { discountType } = useSettingsStore();
-  const {
-    cart,
-    selectedCustomer,
-    discountValue,
-    addToCart,
-    removeFromCart,
-    updateQuantity,
-    setCustomer,
-    setDiscountValue,
-    clearCart,
-    subtotal,
-    discountAmount,
-    total,
-  } = usePosStore();
+  const { cart, selectedCustomer, discount, addToCart, removeFromCart, updateQuantity, setCustomer, setDiscount, clearCart, subtotal, total } = usePosStore();
 
   const [tab, setTab] = useState<Tab>("services");
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
@@ -60,7 +44,7 @@ export default function PosPage() {
   }, [user?.branchId]);
 
   const filteredServices = services.filter((s) => {
-    const matchCat = !selectedCategory || s.categoryId === selectedCategory;
+    const matchCat = !selectedCategory || s.categories.some((c) => c.id === selectedCategory);
     const matchSearch = !search || s.name.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
@@ -75,22 +59,14 @@ export default function PosPage() {
     setCustomers(result.items);
   }, []);
 
-  const sub = subtotal();
-  const discountValidationError = validateDiscountValue(discountType, discountValue, sub);
-  const cartDiscountError = cart.some(
-    (item) => validateDiscountValue(discountType, item.discountValue, item.unitPrice * item.quantity) !== null
-  );
-  const hasDiscountError = !!discountValidationError || cartDiscountError;
-
   const handleCheckout = async () => {
-    if (!user?.branchId || cart.length === 0 || hasDiscountError) return;
-
+    if (!user?.branchId || cart.length === 0) return;
     setProcessing(true);
     try {
       const invoice = await api.post<{ id: string }>("/invoices", {
         branchId: user.branchId,
         customerId: selectedCustomer?.id || null,
-        discountValue,
+        discountAmount: discount,
         taxAmount: 0,
         items: cart.map((item) => ({
           itemType: item.itemType === "Service" ? 1 : 2,
@@ -100,7 +76,7 @@ export default function PosPage() {
           name: item.name,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
-          discountValue: item.discountValue,
+          discountAmount: item.discountAmount,
         })),
       });
       const receiptData = await api.get<Receipt>(`/invoices/${invoice.id}/receipt`);
@@ -139,7 +115,7 @@ export default function PosPage() {
       <table>${receipt.items.map((i) => `<tr><td>${i.name} x${i.quantity}</td><td>${fmt(i.lineTotal)}</td></tr>`).join("")}</table>
       <div class="line"></div>
       <table><tr><td>${tCommon("subtotal")}</td><td>${fmt(receipt.subTotal)}</td></tr>
-      ${receipt.discountAmount > 0 ? `<tr><td>${tCommon("discount")}</td><td>${formatDiscountDisplay(receipt.discountType, receipt.discountValue, receipt.discountAmount, fmt)}</td></tr>` : ""}
+      ${receipt.discountAmount > 0 ? `<tr><td>${tCommon("discount")}</td><td>-${fmt(receipt.discountAmount)}</td></tr>` : ""}
       <tr><td><b>${tCommon("total")}</b></td><td><b>${fmt(receipt.total)}</b></td></tr></table>
       <div class="line"></div><div class="center">${tCommon("thankYou")}</div></body></html>`);
     win.document.close();
@@ -176,7 +152,11 @@ export default function PosPage() {
             <button key={s.id} onClick={() => addToCart({ itemType: "Service", serviceOfferingId: s.id, name: s.name, unitPrice: s.price })}
               className="flex flex-col items-start rounded-xl border border-slate-200 p-3 text-start hover:border-violet-400 hover:bg-violet-50 active:scale-95 transition-all">
               <span className="text-sm font-medium text-slate-900 line-clamp-2">{s.name}</span>
-              {s.categoryName && <span className="text-xs text-slate-400 mt-0.5">{s.categoryName}</span>}
+              {s.categories.length > 0 && (
+                <span className="text-xs text-slate-400 mt-0.5 line-clamp-1">
+                  {s.categories.map((c) => c.name).join(" | ")}
+                </span>
+              )}
               <span className="mt-auto pt-2 text-sm font-bold text-violet-600">{fmt(s.price)}</span>
             </button>
           )) : filteredProducts.map((p) => (
@@ -256,27 +236,15 @@ export default function PosPage() {
             <span className="text-slate-500">{tCommon("subtotal")}</span>
             <span>{fmt(subtotal())}</span>
           </div>
-          <div className="flex items-start gap-2">
-            <DiscountFieldLabel discountType={discountType} />
-            <DiscountInput
-              discountType={discountType}
-              value={discountValue}
-              subtotal={subtotal()}
-              onChange={setDiscountValue}
-            />
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-500 shrink-0">{tCommon("discount")}</span>
+            <Input type="number" min="0" step="0.01" value={discount || ""} onChange={(e) => setDiscount(Number(e.target.value) || 0)} className="text-end" placeholder="0.00" />
           </div>
-          {discountValue > 0 && (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-500">{tCommon("discount")}</span>
-              <span className="text-emerald-600">-{fmt(discountAmount())}</span>
-            </div>
-          )}
-          <p className="text-xs text-slate-400">{t("discountModeHint", { mode: discountType === "PERCENTAGE" ? t("modePercentage") : t("modeFixed") })}</p>
           <div className="flex items-center justify-between font-bold text-lg pt-1">
             <span>{tCommon("total")}</span>
             <span className="text-violet-600">{fmt(total())}</span>
           </div>
-          <Button className="w-full" size="lg" onClick={handleCheckout} disabled={cart.length === 0 || processing || hasDiscountError}>
+          <Button className="w-full" size="lg" onClick={handleCheckout} disabled={cart.length === 0 || processing}>
             <CreditCard className="h-4 w-4" />
             {processing ? t("processing") : t("completeSale")}
           </Button>

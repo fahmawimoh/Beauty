@@ -11,5 +11,5 @@ public class ServiceCategory : BaseEntity
     public bool IsActive { get; set; } = true;
 
     public Tenant Tenant { get; set; } = null!;
-    public ICollection<ServiceOffering> ServiceOfferings { get; set; } = [];
+    public ICollection<ServiceOfferingCategory> ServiceOfferingCategories { get; set; } = [];
 }
