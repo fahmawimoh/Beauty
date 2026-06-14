@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, Shield, Pencil, Trash2 } from "lucide-react";
+import { Plus, Shield, Pencil, Trash2, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { PasswordStrength, validatePassword } from "@/components/ui/password-strength";
 import { api } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { useAuthStore } from "@/lib/store";
@@ -58,6 +59,10 @@ export default function UsersPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<Employee | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
+  const [passwordTarget, setPasswordTarget] = useState<Employee | null>(null);
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
+  const [changingPassword, setChangingPassword] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     email: "", password: "", firstName: "", lastName: "", role: 3, branchIds: [] as string[],
@@ -180,6 +185,48 @@ export default function UsersPage() {
       toast("error", getError(err, tCommon("deleteFailed")));
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const openPasswordChange = (target: Employee) => {
+    setPasswordTarget(target);
+    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    setPasswordErrors({});
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordTarget) return;
+
+    const errors: Record<string, string> = {};
+    const isSelf = passwordTarget.id === user?.userId;
+
+    if (isSelf && !passwordForm.currentPassword.trim())
+      errors.currentPassword = t("currentPassword") + " *";
+
+    const pwdError = validatePassword(passwordForm.newPassword, t);
+    if (pwdError) errors.newPassword = pwdError;
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword)
+      errors.confirmPassword = t("passwordMismatch");
+
+    if (Object.keys(errors).length) {
+      setPasswordErrors(errors);
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await api.post(`/users/${passwordTarget.id}/change-password`, {
+        currentPassword: isSelf ? passwordForm.currentPassword : null,
+        newPassword: passwordForm.newPassword,
+      });
+      setPasswordTarget(null);
+      toast("success", t("passwordChanged"));
+    } catch (err) {
+      toast("error", getError(err, t("passwordChangeFailed")));
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -306,6 +353,9 @@ export default function UsersPage() {
         actionsHeader={tCommon("actions")}
         actions={(row) => isAdmin ? (
           <div className="flex items-center justify-end gap-1">
+            <Button variant="ghost" size="sm" className="text-slate-600 hover:text-violet-700 hover:bg-violet-50" title={t("changePassword")} onClick={() => openPasswordChange(row)}>
+              <KeyRound className="h-4 w-4" />
+            </Button>
             <Button variant="ghost" size="sm" className="text-slate-600 hover:text-violet-700 hover:bg-violet-50" onClick={() => setEditingUser(row)}>
               <Pencil className="h-4 w-4" />
             </Button>
@@ -374,6 +424,41 @@ export default function UsersPage() {
           <div className="sm:col-span-2">
             {branchSelect(editForm.branchIds, (ids) => setEditForm({ ...editForm, branchIds: ids }), formErrors.branches)}
           </div>
+        </div>
+      </FormDialog>
+
+      <FormDialog
+        open={!!passwordTarget}
+        onClose={() => setPasswordTarget(null)}
+        title={t("changePassword")}
+        subtitle={passwordTarget ? t("changePasswordFor", { name: passwordTarget.fullName }) : undefined}
+        onSubmit={handleChangePassword}
+        submitLabel={changingPassword ? tCommon("saving") : t("changePassword")}
+        cancelLabel={tCommon("cancel")}
+        loading={changingPassword}
+      >
+        {passwordTarget?.id === user?.userId && (
+          <div>
+            <FieldLabel>{t("currentPassword")}</FieldLabel>
+            <Input type="password" value={passwordForm.currentPassword} onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })} autoFocus />
+            <FieldError message={passwordErrors.currentPassword} />
+          </div>
+        )}
+        <div>
+          <FieldLabel>{t("newPassword")}</FieldLabel>
+          <Input
+            type="password"
+            value={passwordForm.newPassword}
+            onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+            autoFocus={passwordTarget?.id !== user?.userId}
+          />
+          <PasswordStrength password={passwordForm.newPassword} />
+          <FieldError message={passwordErrors.newPassword} />
+        </div>
+        <div>
+          <FieldLabel>{t("confirmPassword")}</FieldLabel>
+          <Input type="password" value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} />
+          <FieldError message={passwordErrors.confirmPassword} />
         </div>
       </FormDialog>
 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { api } from "@/lib/api";
+import { PasswordStrength, validatePassword } from "@/components/ui/password-strength";
 import { useAuthStore } from "@/lib/store";
 import { useApiError } from "@/lib/errors";
 
@@ -32,8 +33,9 @@ export default function SettingsPage() {
       setError(t("passwordMismatch"));
       return;
     }
-    if (newPassword.length < 6) {
-      setError(t("passwordMinLength"));
+    const pwdError = validatePassword(newPassword, tUsers);
+    if (pwdError) {
+      setError(pwdError);
       return;
     }
 
@@ -78,7 +80,8 @@ export default function SettingsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("newPassword")}</label>
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} minLength={6} required />
+              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
+              <PasswordStrength password={newPassword} />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("confirmPassword")}</label>

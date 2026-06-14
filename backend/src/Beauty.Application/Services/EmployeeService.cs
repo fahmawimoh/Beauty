@@ -1,3 +1,4 @@
+using Beauty.Application.Common;
 using Beauty.Application.DTOs.Employees;
 using Beauty.Application.Interfaces;
 using Beauty.Domain.Entities;
@@ -139,6 +140,38 @@ public class EmployeeService : IEmployeeService
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Delete", "User", user.Id, user.FullName, cancellationToken);
         return true;
+    }
+
+    public async Task ChangePasswordAsync(Guid userId, ChangeUserPasswordRequest request, CancellationToken cancellationToken = default)
+    {
+        var tenantId = RequireTenantId();
+        var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException();
+
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.Id == userId && u.TenantId == tenantId && u.IsActive, cancellationToken)
+            ?? throw new InvalidOperationException("User not found.");
+
+        if (userId != currentUserId)
+        {
+            var actor = await _context.Users
+                .FirstOrDefaultAsync(u => u.Id == currentUserId && u.TenantId == tenantId, cancellationToken)
+                ?? throw new UnauthorizedAccessException();
+            if (actor.Role != UserRole.Admin)
+                throw new UnauthorizedAccessException("Only admins can change other users' passwords.");
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(request.CurrentPassword) ||
+                !BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+                throw new UnauthorizedAccessException("Current password is incorrect.");
+        }
+
+        PasswordValidator.Validate(request.NewPassword);
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync("ChangePassword", "User", user.Id, user.Email, cancellationToken);
     }
 
     public async Task<IReadOnlyList<EmployeePerformanceDto>> GetPerformanceAsync(Guid? branchId = null, DateTime? from = null, DateTime? to = null, CancellationToken cancellationToken = default)

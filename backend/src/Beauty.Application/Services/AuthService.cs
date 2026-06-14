@@ -1,3 +1,4 @@
+using Beauty.Application.Common;
 using Beauty.Application.DTOs.Auth;
 using Beauty.Application.Interfaces;
 using Beauty.Domain.Entities;
@@ -80,8 +81,7 @@ public class AuthService : IAuthService
         if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
             throw new UnauthorizedAccessException("Current password is incorrect.");
 
-        if (request.NewPassword.Length < 6)
-            throw new InvalidOperationException("New password must be at least 6 characters.");
+        PasswordValidator.Validate(request.NewPassword);
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
         user.UpdatedAt = DateTime.UtcNow;

@@ -82,6 +82,25 @@ public class UsersController : ControllerBase
         }
     }
 
+    [HttpPost("{id:guid}/change-password")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<ActionResult<ApiResponse<bool>>> ChangePassword(Guid id, [FromBody] ChangeUserPasswordRequest request, CancellationToken ct)
+    {
+        try
+        {
+            await _employeeService.ChangePasswordAsync(id, request, ct);
+            return Ok(ApiResponse<bool>.Ok(true, "Password changed successfully"));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(ApiResponse<bool>.Fail(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<bool>.Fail(ex.Message));
+        }
+    }
+
     [HttpGet("roles")]
     [AllowAnonymous]
     public ActionResult<ApiResponse<object>> GetRoles()

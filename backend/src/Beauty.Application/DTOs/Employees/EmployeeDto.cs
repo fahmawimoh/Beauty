@@ -34,6 +34,8 @@ public record UpdateEmployeeRequest(
     IReadOnlyList<Guid> BranchIds
 );
 
+public record ChangeUserPasswordRequest(string? CurrentPassword, string NewPassword);
+
 public record EmployeePerformanceDto(
     Guid EmployeeId,
     string EmployeeName,
