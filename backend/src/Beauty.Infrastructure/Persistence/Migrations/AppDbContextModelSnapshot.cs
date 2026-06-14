@@ -688,119 +688,6 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                     b.ToTable("UserBranches");
                 });
 
-            modelBuilder.Entity("Beauty.Domain.Entities.WhatsAppCampaign", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("FailedCount")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("FilterSummary")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("PendingCount")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("SentCount")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TemplateType")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("TotalRecipients")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedByUserId");
-
-                    b.HasIndex("TenantId", "CreatedAt");
-
-                    b.ToTable("WhatsAppCampaigns");
-                });
-
-            modelBuilder.Entity("Beauty.Domain.Entities.WhatsAppMessage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("CampaignId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CustomerId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CustomerName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Phone")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ProviderMessageId")
-                        .HasColumnType("text");
-
-                    b.Property<int>("RetryCount")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("SentAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CustomerId");
-
-                    b.HasIndex("CampaignId", "Status");
-
-                    b.ToTable("WhatsAppMessages");
-                });
-
             modelBuilder.Entity("Beauty.Domain.Entities.AuditLog", b =>
                 {
                     b.HasOne("Beauty.Domain.Entities.Tenant", "Tenant")
@@ -1061,42 +948,6 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Beauty.Domain.Entities.WhatsAppCampaign", b =>
-                {
-                    b.HasOne("Beauty.Domain.Entities.User", "CreatedByUser")
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Beauty.Domain.Entities.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CreatedByUser");
-
-                    b.Navigation("Tenant");
-                });
-
-            modelBuilder.Entity("Beauty.Domain.Entities.WhatsAppMessage", b =>
-                {
-                    b.HasOne("Beauty.Domain.Entities.WhatsAppCampaign", "Campaign")
-                        .WithMany("Messages")
-                        .HasForeignKey("CampaignId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Beauty.Domain.Entities.Customer", "Customer")
-                        .WithMany()
-                        .HasForeignKey("CustomerId");
-
-                    b.Navigation("Campaign");
-
-                    b.Navigation("Customer");
-                });
-
             modelBuilder.Entity("Beauty.Domain.Entities.Branch", b =>
                 {
                     b.Navigation("Expenses");
@@ -1153,11 +1004,6 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                     b.Navigation("Invoices");
 
                     b.Navigation("UserBranches");
-                });
-
-            modelBuilder.Entity("Beauty.Domain.Entities.WhatsAppCampaign", b =>
-                {
-                    b.Navigation("Messages");
                 });
 #pragma warning restore 612, 618
         }

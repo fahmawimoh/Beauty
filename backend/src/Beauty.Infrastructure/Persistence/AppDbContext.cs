@@ -23,8 +23,6 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
     public DbSet<Expense> Expenses => Set<Expense>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-    public DbSet<WhatsAppCampaign> WhatsAppCampaigns => Set<WhatsAppCampaign>();
-    public DbSet<WhatsAppMessage> WhatsAppMessages => Set<WhatsAppMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -80,20 +78,6 @@ public class AppDbContext : DbContext, IAppDbContext
         modelBuilder.Entity<Expense>(entity =>
         {
             entity.HasOne(e => e.Branch).WithMany(b => b.Expenses).HasForeignKey(e => e.BranchId);
-        });
-
-        modelBuilder.Entity<WhatsAppCampaign>(entity =>
-        {
-            entity.HasOne(c => c.Tenant).WithMany().HasForeignKey(c => c.TenantId);
-            entity.HasOne(c => c.CreatedByUser).WithMany().HasForeignKey(c => c.CreatedByUserId);
-            entity.HasIndex(c => new { c.TenantId, c.CreatedAt });
-        });
-
-        modelBuilder.Entity<WhatsAppMessage>(entity =>
-        {
-            entity.HasOne(m => m.Campaign).WithMany(c => c.Messages).HasForeignKey(m => m.CampaignId);
-            entity.HasOne(m => m.Customer).WithMany().HasForeignKey(m => m.CustomerId);
-            entity.HasIndex(m => new { m.CampaignId, m.Status });
         });
     }
 }

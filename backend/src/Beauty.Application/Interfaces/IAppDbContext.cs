@@ -20,8 +20,6 @@ public interface IAppDbContext
     DbSet<InvoiceItem> InvoiceItems { get; }
     DbSet<Expense> Expenses { get; }
     DbSet<AuditLog> AuditLogs { get; }
-    DbSet<WhatsAppCampaign> WhatsAppCampaigns { get; }
-    DbSet<WhatsAppMessage> WhatsAppMessages { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
