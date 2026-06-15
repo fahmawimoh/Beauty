@@ -20,9 +20,10 @@ public static class ProductSalesCalculator
                 var first = g.First();
                 return new ProductSalesRowDto(
                     first.ProductId,
+                    first.ProductSku,
                     first.ProductName,
                     "Product",
-                    first.ProductSku ?? "General",
+                    "General",
                     g.Sum(x => x.Quantity),
                     g.Sum(x => x.LineTotal));
             })

@@ -388,6 +388,7 @@
     "noServiceSales": "لا توجد مبيعات خدمات لهذه الفترة",
     "transactionId": "معرف المعاملة",
     "productId": "معرف المنتج",
+    "productSku": "رمز المنتج",
     "serviceId": "معرف الخدمة",
     "filters": {
       "timeRange": "الفترة الزمنية",

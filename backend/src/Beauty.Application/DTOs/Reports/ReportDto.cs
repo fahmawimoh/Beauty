@@ -60,6 +60,7 @@ public record SalesRowDto(
 
 public record ProductSalesRowDto(
     Guid? ProductId,
+    string? ProductSku,
     string ProductName,
     string ProductType,
     string ProductCategory,

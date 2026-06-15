@@ -355,9 +355,10 @@ public class ReportService : IReportService
 
         var items = rows.Select(g => new ProductSalesRowDto(
             g.ProductId,
+            g.ProductSku,
             g.ProductName,
             "Product",
-            g.ProductSku ?? "General",
+            "General",
             g.QuantitySold,
             g.TotalSalesAmount)).ToList();
 

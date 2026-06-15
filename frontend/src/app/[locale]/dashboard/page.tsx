@@ -134,7 +134,7 @@ export default function DashboardPage() {
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-slate-900 truncate">{product.productName}</p>
                         <p className="text-xs text-slate-400">
-                          {product.productType} · {product.productCategory} · {t("quantitySold", { count: product.quantitySold })}
+                          {product.productType} · {product.productSku ?? product.productCategory} · {t("quantitySold", { count: product.quantitySold })}
                         </p>
                       </div>
                     </div>
@@ -171,7 +171,7 @@ export default function DashboardPage() {
                       <tr key={product.productId ?? product.productName} className="border-b border-slate-50">
                         <td className="px-4 py-3">
                           <p className="font-medium text-slate-900">{product.productName}</p>
-                          <p className="text-xs text-slate-400">{product.productCategory}</p>
+                          <p className="text-xs text-slate-400">{product.productSku ?? product.productCategory}</p>
                         </td>
                         <td className="px-4 py-3 text-end">{product.quantitySold}</td>
                         <td className="px-4 py-3 text-end font-semibold">

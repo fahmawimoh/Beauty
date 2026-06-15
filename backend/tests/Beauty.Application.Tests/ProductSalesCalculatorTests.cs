@@ -35,7 +35,8 @@ public class ProductSalesCalculatorTests
         Assert.Equal(5, shampoo.QuantitySold);
         Assert.Equal(100m, shampoo.TotalSalesAmount);
         Assert.Equal("Product", shampoo.ProductType);
-        Assert.Equal("SKU-01", shampoo.ProductCategory);
+        Assert.Equal("SKU-01", shampoo.ProductSku);
+        Assert.Equal("General", shampoo.ProductCategory);
     }
 
     [Fact]

@@ -388,6 +388,7 @@
     "noServiceSales": "No service sales for this period",
     "transactionId": "Transaction ID",
     "productId": "Product ID",
+    "productSku": "SKU",
     "serviceId": "Service ID",
     "filters": {
       "timeRange": "Time range",

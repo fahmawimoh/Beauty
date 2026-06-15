@@ -29,6 +29,7 @@ export interface SalesRow {
 
 export interface ProductSalesAggregateRow {
   productId?: string | null;
+  productSku?: string | null;
   productName: string;
   productType: string;
   productCategory: string;
@@ -39,6 +40,7 @@ export interface ProductSalesAggregateRow {
 export interface ProductSalesRow {
   lineItemId: string;
   productId?: string | null;
+  productSku?: string | null;
   productName: string;
   productType: string;
   productCategory: string;
