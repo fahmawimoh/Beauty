@@ -123,7 +123,20 @@
     "lowStockAlert": "{count} low stock items",
     "lowStockHint": "Review inventory soon",
     "inventoryHealthy": "Inventory levels are healthy",
-    "todayExpenses": "Today's Expenses"
+    "todayExpenses": "Today's Expenses",
+    "productSalesToday": "Product Sales Today",
+    "productQuantityToday": "{count} items sold",
+    "systemGrandTotal": "Grand Total Sales",
+    "systemGrandTotalHint": "All sales today (services + products)",
+    "topProductsCount": "Top Products",
+    "topProductsHint": "Best sellers today",
+    "topSellingProducts": "Top Selling Products",
+    "topSellingProductsHint": "Ranked by revenue today",
+    "productBreakdown": "Product Sales Breakdown",
+    "productBreakdownHint": "Per-product totals for today",
+    "productGrandTotal": "Product Total",
+    "noProductSales": "No product sales today",
+    "quantitySold": "{count} sold"
   },
   "customers": {
     "title": "Customers",
@@ -340,7 +353,16 @@
     "truncated": "Showing {shown} of {total} sales",
     "loadError": "Failed to load sales data. Please try again.",
     "detailError": "Failed to load sale details.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "productSalesTable": "Product Sales",
+    "productSalesSubtitle": "Aggregated product sales for the selected period",
+    "productType": "Type",
+    "productCategory": "Category",
+    "quantitySold": "Qty Sold",
+    "productSalesAmount": "Sales Amount",
+    "productGrandTotal": "Grand Total",
+    "productQuantityTotal": "Total Items Sold",
+    "noProductSales": "No product sales for this period"
   },
   "pos": {
     "services": "Services",

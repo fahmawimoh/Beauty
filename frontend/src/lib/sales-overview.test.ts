@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  aggregateProductSales,
   aggregateSalesRows,
   hasTruncatedResults,
   isSummaryConsistent,
   isValidSalesPeriod,
   normalizeSalesPeriod,
+  verifyProductSalesTotals,
 } from "./sales-overview";
 
 describe("sales overview helpers", () => {
@@ -56,5 +58,40 @@ describe("sales overview helpers", () => {
   it("flags truncated result sets", () => {
     expect(hasTruncatedResults(120, 100)).toBe(true);
     expect(hasTruncatedResults(50, 50)).toBe(false);
+  });
+
+  it("aggregates product sales across multiple lines", () => {
+    const report = aggregateProductSales([
+      { productId: "p1", productName: "Shampoo", productCategory: "SKU-01", quantitySold: 2, totalSalesAmount: 40 },
+      { productId: "p1", productName: "Shampoo", productCategory: "SKU-01", quantitySold: 3, totalSalesAmount: 60 },
+      { productId: "p2", productName: "Conditioner", productCategory: "SKU-02", quantitySold: 1, totalSalesAmount: 25 },
+    ]);
+
+    expect(report.products).toHaveLength(2);
+    expect(report.grandTotal).toBe(125);
+    expect(report.totalQuantitySold).toBe(6);
+    expect(report.products[0].productName).toBe("Shampoo");
+    expect(report.products[0].quantitySold).toBe(5);
+    expect(report.products[0].totalSalesAmount).toBe(100);
+    expect(verifyProductSalesTotals(report)).toBe(true);
+  });
+
+  it("handles zero product sales", () => {
+    const report = aggregateProductSales([]);
+    expect(report.products).toHaveLength(0);
+    expect(report.grandTotal).toBe(0);
+    expect(report.totalQuantitySold).toBe(0);
+    expect(verifyProductSalesTotals(report)).toBe(true);
+  });
+
+  it("groups products without id by name", () => {
+    const report = aggregateProductSales([
+      { productId: null, productName: "Walk-in Item", productCategory: "General", quantitySold: 1, totalSalesAmount: 10 },
+      { productId: null, productName: "Walk-in Item", productCategory: "General", quantitySold: 2, totalSalesAmount: 20 },
+    ]);
+
+    expect(report.products).toHaveLength(1);
+    expect(report.products[0].quantitySold).toBe(3);
+    expect(report.products[0].totalSalesAmount).toBe(30);
   });
 });

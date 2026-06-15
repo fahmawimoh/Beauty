@@ -42,6 +42,9 @@ export interface DashboardSummary {
   yearRevenue: number;
   lowStockCount: number;
   last7DaysSales: { date: string; revenue: number; invoiceCount: number; customerCount: number }[];
+  productSalesGrandTotal: number;
+  productQuantitySold: number;
+  topProductSales: ProductSalesRow[];
 }
 
 export interface Customer {

@@ -10,7 +10,10 @@ public record DashboardSummaryDto(
     decimal MonthRevenue,
     decimal YearRevenue,
     int LowStockCount,
-    IReadOnlyList<DailySalesDto> Last7DaysSales
+    IReadOnlyList<DailySalesDto> Last7DaysSales,
+    decimal ProductSalesGrandTotal,
+    int ProductQuantitySold,
+    IReadOnlyList<ProductSalesRowDto> TopProductSales
 );
 
 public record DailySalesDto(DateTime Date, decimal Revenue, int InvoiceCount, int CustomerCount);
@@ -53,6 +56,21 @@ public record SalesRowDto(
     DateTime CreatedAt
 );
 
+public record ProductSalesRowDto(
+    Guid? ProductId,
+    string ProductName,
+    string ProductType,
+    string ProductCategory,
+    int QuantitySold,
+    decimal TotalSalesAmount
+);
+
+public record ProductSalesReportDto(
+    IReadOnlyList<ProductSalesRowDto> Products,
+    decimal GrandTotal,
+    int TotalQuantitySold
+);
+
 public record SalesOverviewDto(
     string Period,
     DateTime StartDate,
@@ -62,5 +80,6 @@ public record SalesOverviewDto(
     SalesPeriodSummaryDto Weekly,
     SalesPeriodSummaryDto Monthly,
     IReadOnlyList<SalesRowDto> Sales,
-    int TotalSalesCount
+    int TotalSalesCount,
+    ProductSalesReportDto ProductSales
 );

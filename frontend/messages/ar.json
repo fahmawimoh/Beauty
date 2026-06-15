@@ -123,7 +123,20 @@
     "lowStockAlert": "{count} منتجات منخفضة المخزون",
     "lowStockHint": "راجع المخزون قريباً",
     "inventoryHealthy": "مستويات المخزون جيدة",
-    "todayExpenses": "مصروفات اليوم"
+    "todayExpenses": "مصروفات اليوم",
+    "productSalesToday": "مبيعات المنتجات اليوم",
+    "productQuantityToday": "{count} عنصر مباع",
+    "systemGrandTotal": "إجمالي المبيعات",
+    "systemGrandTotalHint": "جميع المبيعات اليوم (خدمات + منتجات)",
+    "topProductsCount": "أفضل المنتجات",
+    "topProductsHint": "الأكثر مبيعاً اليوم",
+    "topSellingProducts": "المنتجات الأكثر مبيعاً",
+    "topSellingProductsHint": "مرتبة حسب الإيرادات اليوم",
+    "productBreakdown": "تفصيل مبيعات المنتجات",
+    "productBreakdownHint": "إجماليات كل منتج لليوم",
+    "productGrandTotal": "إجمالي المنتجات",
+    "noProductSales": "لا توجد مبيعات منتجات اليوم",
+    "quantitySold": "{count} مباع"
   },
   "customers": {
     "title": "العملاء",
@@ -340,7 +353,16 @@
     "truncated": "عرض {shown} من {total} مبيعة",
     "loadError": "فشل تحميل بيانات المبيعات. يرجى المحاولة مرة أخرى.",
     "detailError": "فشل تحميل تفاصيل البيع.",
-    "retry": "إعادة المحاولة"
+    "retry": "إعادة المحاولة",
+    "productSalesTable": "مبيعات المنتجات",
+    "productSalesSubtitle": "مبيعات المنتجات المجمعة للفترة المحددة",
+    "productType": "النوع",
+    "productCategory": "الفئة",
+    "quantitySold": "الكمية المباعة",
+    "productSalesAmount": "قيمة المبيعات",
+    "productGrandTotal": "الإجمالي الكلي",
+    "productQuantityTotal": "إجمالي العناصر المباعة",
+    "noProductSales": "لا توجد مبيعات منتجات لهذه الفترة"
   },
   "pos": {
     "services": "الخدمات",

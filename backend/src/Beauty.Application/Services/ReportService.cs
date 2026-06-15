@@ -58,12 +58,15 @@ public class ReportService : IReportService
             .CountAsync(p => p.TenantId == tenantId && p.IsActive && p.StockQuantity <= p.LowStockThreshold
                 && (!branchId.HasValue || p.BranchId == null || p.BranchId == branchId), cancellationToken);
 
+        var productSales = await GetProductSalesReportAsync(tenantId, branchId, today, today.AddDays(1).AddTicks(-1), cancellationToken, topLimit: 5);
+
         return new DashboardSummaryDto(
             todayRevenue, todayCustomers, todayInvoiceCount, todayExpenses, todayRevenue - todayExpenses,
             await invoiceQuery.Where(i => i.CreatedAt >= weekStart).SumAsync(i => i.TotalAmount, cancellationToken),
             await invoiceQuery.Where(i => i.CreatedAt >= monthStart).SumAsync(i => i.TotalAmount, cancellationToken),
             await invoiceQuery.Where(i => i.CreatedAt >= yearStart).SumAsync(i => i.TotalAmount, cancellationToken),
-            lowStockCount, last7DaysSales);
+            lowStockCount, last7DaysSales,
+            productSales.GrandTotal, productSales.TotalQuantitySold, productSales.Products);
     }
 
     public async Task<PeriodReportDto> GetPeriodReportAsync(string period, Guid? branchId = null, CancellationToken cancellationToken = default)
@@ -187,8 +190,51 @@ public class ReportService : IReportService
             _ => daily
         };
 
+        var productSales = await GetProductSalesReportAsync(tenantId, branchId, tableStart, tableEnd, cancellationToken);
+
         return new SalesOverviewDto(
-            normalizedPeriod, tableStart, tableEnd, current, daily, weekly, monthly, sales, totalSalesCount);
+            normalizedPeriod, tableStart, tableEnd, current, daily, weekly, monthly, sales, totalSalesCount, productSales);
+    }
+
+    private async Task<ProductSalesReportDto> GetProductSalesReportAsync(
+        Guid tenantId,
+        Guid? branchId,
+        DateTime start,
+        DateTime end,
+        CancellationToken cancellationToken,
+        int? topLimit = null)
+    {
+        var query = _context.InvoiceItems
+            .Where(ii => ii.ItemType == InvoiceItemType.Product
+                && ii.Invoice.TenantId == tenantId
+                && ii.Invoice.Status == InvoiceStatus.Completed
+                && ii.Invoice.CreatedAt >= start
+                && ii.Invoice.CreatedAt <= end);
+
+        if (branchId.HasValue)
+            query = query.Where(ii => ii.Invoice.BranchId == branchId);
+
+        var grouped = await query
+            .GroupBy(ii => new
+            {
+                ii.ProductId,
+                ProductName = ii.Product != null ? ii.Product.Name : ii.Name,
+                ProductSku = ii.Product != null ? ii.Product.Sku : null
+            })
+            .Select(g => new
+            {
+                g.Key.ProductId,
+                g.Key.ProductName,
+                g.Key.ProductSku,
+                QuantitySold = g.Sum(ii => ii.Quantity),
+                TotalSalesAmount = g.Sum(ii => ii.LineTotal)
+            })
+            .ToListAsync(cancellationToken);
+
+        var lines = grouped.Select(g => new ProductSalesLine(
+            g.ProductId, g.ProductName, g.ProductSku, g.QuantitySold, g.TotalSalesAmount));
+
+        return ProductSalesCalculator.Calculate(lines, topLimit);
     }
 
     private Guid RequireTenantId() => _currentUser.TenantId ?? throw new UnauthorizedAccessException();

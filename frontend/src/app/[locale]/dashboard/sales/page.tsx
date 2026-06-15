@@ -174,6 +174,67 @@ export default function SalesPage() {
           </Card>
 
           <Card>
+            <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-semibold text-slate-900">{t("productSalesTable")}</h2>
+                <p className="text-xs text-slate-400 mt-1">{t("productSalesSubtitle")}</p>
+              </div>
+              {overview.productSales && (
+                <div className="flex flex-wrap gap-4 text-sm">
+                  <div>
+                    <p className="text-slate-500">{t("productGrandTotal")}</p>
+                    <p className="font-bold text-violet-600">{fmt(overview.productSales.grandTotal)}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">{t("productQuantityTotal")}</p>
+                    <p className="font-bold text-slate-900">{overview.productSales.totalQuantitySold}</p>
+                  </div>
+                </div>
+              )}
+            </CardHeader>
+            <CardContent className="p-0">
+              {!overview.productSales || overview.productSales.products.length === 0 ? (
+                <p className="p-8 text-center text-sm text-slate-400">{t("noProductSales")}</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-start text-slate-500">
+                        <th className="px-4 py-3 font-medium">{tCommon("name")}</th>
+                        <th className="px-4 py-3 font-medium">{t("productType")}</th>
+                        <th className="px-4 py-3 font-medium">{t("productCategory")}</th>
+                        <th className="px-4 py-3 font-medium text-end">{t("quantitySold")}</th>
+                        <th className="px-4 py-3 font-medium text-end">{t("productSalesAmount")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {overview.productSales.products.map((product) => (
+                        <tr
+                          key={product.productId ?? product.productName}
+                          className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors"
+                        >
+                          <td className="px-4 py-3 font-medium text-slate-900">{product.productName}</td>
+                          <td className="px-4 py-3 text-slate-600">{product.productType}</td>
+                          <td className="px-4 py-3 text-slate-600">{product.productCategory}</td>
+                          <td className="px-4 py-3 text-end">{product.quantitySold}</td>
+                          <td className="px-4 py-3 text-end font-semibold">{fmt(product.totalSalesAmount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-slate-200 bg-slate-50 font-semibold">
+                        <td className="px-4 py-3" colSpan={3}>{t("productGrandTotal")}</td>
+                        <td className="px-4 py-3 text-end">{overview.productSales.totalQuantitySold}</td>
+                        <td className="px-4 py-3 text-end text-violet-700">{fmt(overview.productSales.grandTotal)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-2">
               <div>
                 <h2 className="font-semibold text-slate-900">{t("salesTable")}</h2>
