@@ -94,6 +94,7 @@
     "creatingAccount": "جاري إنشاء الحساب...",
     "hasAccount": "لديك حساب بالفعل؟",
     "loginFailed": "فشل تسجيل الدخول. تحقق من بياناتك.",
+    "sessionExpired": "انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.",
     "registerFailed": "فشل التسجيل. حاول مرة أخرى.",
     "logoutConfirmTitle": "تسجيل الخروج؟",
     "logoutConfirmMessage": "سيتم تسجيل خروجك وإعادتك إلى صفحة تسجيل الدخول.",

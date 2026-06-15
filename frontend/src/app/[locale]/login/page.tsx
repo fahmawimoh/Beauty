@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRouter, Link } from "@/i18n/navigation";
 import { Sparkles } from "lucide-react";
@@ -10,32 +11,33 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { useAuthStore } from "@/lib/store";
 import { useApiError } from "@/lib/errors";
-import { api } from "@/lib/api";
+import { isAuthStateValid } from "@/lib/auth";
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionExpired = searchParams.get("sessionExpired") === "1";
   const t = useTranslations("auth");
   const tCommon = useTranslations("common");
   const getError = useApiError();
 
   useEffect(() => {
     const redirectIfAuthenticated = () => {
-      const { isAuthenticated, user } = useAuthStore.getState();
-      const token = api.getToken();
-      if (token && isAuthenticated) {
-        router.replace(user?.role === "Cashier" ? "/pos" : "/dashboard");
-      }
+      if (!isAuthStateValid()) return;
+      const { user } = useAuthStore.getState();
+      router.replace(user?.role === "Cashier" ? "/pos" : "/dashboard");
     };
 
     const unsub = useAuthStore.persist.onFinishHydration(redirectIfAuthenticated);
     if (useAuthStore.persist.hasHydrated()) redirectIfAuthenticated();
     return unsub;
   }, [router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -79,6 +81,11 @@ export default function LoginPage() {
           <p className="mt-1 text-slate-500">{t("signInSubtitle")}</p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+            {sessionExpired && (
+              <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                {t("sessionExpired")}
+              </p>
+            )}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{tCommon("email")}</label>
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t("emailPlaceholder")} required />
@@ -100,5 +107,22 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  const tCommon = useTranslations("common");
+
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" />
+          <span className="sr-only">{tCommon("loading")}</span>
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

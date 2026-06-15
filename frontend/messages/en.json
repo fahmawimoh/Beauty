@@ -94,6 +94,7 @@
     "creatingAccount": "Creating account...",
     "hasAccount": "Already have an account?",
     "loginFailed": "Login failed. Please check your credentials.",
+    "sessionExpired": "Your session has expired. Please log in again.",
     "registerFailed": "Registration failed. Please try again.",
     "logoutConfirmTitle": "Sign out?",
     "logoutConfirmMessage": "You will be signed out and redirected to the login page.",

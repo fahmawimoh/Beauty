@@ -3,6 +3,12 @@ import { persist } from "zustand/middleware";
 import type { BranchOption, CartItem, Customer, LoginResponse } from "@/types";
 import { calculateDiscountAmount, type DiscountType } from "./discount";
 import { api } from "./api";
+import {
+  AUTH_STORAGE_KEY,
+  clearAllAuthStorage,
+  isTokenExpired,
+  TOKEN_STORAGE_KEY,
+} from "./auth-storage";
 import { performLogout } from "./auth";
 
 interface AuthState {
@@ -59,16 +65,25 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: "auth-storage",
+      name: AUTH_STORAGE_KEY,
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => (state) => {
         const token =
-          (typeof window !== "undefined" ? localStorage.getItem("token") : null) ??
+          (typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : null) ??
           state?.user?.token ??
           null;
+
+        if (token && isTokenExpired(token)) {
+          api.setToken(null);
+          useAuthStore.persist.clearStorage();
+          useAuthStore.setState({ user: null, isAuthenticated: false, hasHydrated: true });
+          clearAllAuthStorage();
+          return;
+        }
+
         if (token) api.setToken(token);
         useAuthStore.setState({ hasHydrated: true });
       },

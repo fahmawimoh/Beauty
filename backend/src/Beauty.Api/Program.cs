@@ -1,10 +1,14 @@
 using System.Text;
 using System.Threading.RateLimiting;
 using Beauty.Api.Authorization;
+using Beauty.Api.Middleware;
 using Beauty.Application;
+using Beauty.Application.DTOs.Common;
 using Beauty.Infrastructure;
 using Beauty.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -42,9 +46,35 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
             ClockSkew = TimeSpan.Zero
         };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                context.HttpContext.Items["AuthFailureReason"] =
+                    context.Exception is SecurityTokenExpiredException ? "expired" : "invalid";
+                return Task.CompletedTask;
+            },
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                if (context.Response.HasStarted)
+                    return;
+
+                var message = context.HttpContext.Items.TryGetValue("AuthFailureReason", out var reason) &&
+                              reason is "expired"
+                    ? "Your session has expired. Please log in again."
+                    : "Unauthorized. Please log in again.";
+
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsJsonAsync(ApiResponse<object>.Fail(message));
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, JsonAuthorizationMiddlewareResultHandler>();
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -87,6 +117,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("Frontend");
 app.UseRateLimiter();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

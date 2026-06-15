@@ -9,15 +9,22 @@ import { LanguageSwitcher } from "./language-switcher";
 import { LogoutButton } from "./logout-button";
 import { ToastContainer } from "@/components/ui/toast-container";
 import { useAuthStore } from "@/lib/store";
-import { api } from "@/lib/api";
-import { performLogout, useAuthHydrated } from "@/lib/auth";
+import {
+  buildLoginRedirectPath,
+  handleSessionExpiration,
+  isAuthStateValid,
+  isPublicAuthRoute,
+  useAuthHydrated,
+} from "@/lib/auth";
+import { usePathname } from "@/i18n/navigation";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const hydrated = useAuthHydrated();
   const { isAuthenticated } = useAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
   const locale = useLocale();
-  const token = api.getToken();
+  const authValid = isAuthStateValid();
 
   useEffect(() => {
     if (!hydrated) return;
@@ -26,20 +33,19 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     if (savedLocale && savedLocale !== locale) {
       document.cookie = `BEAUTY_LOCALE=${savedLocale};path=/;max-age=31536000`;
     }
+  }, [hydrated, locale]);
 
-    api.setUnauthorizedHandler(async () => {
-      await performLogout();
-      router.replace("/login");
-    });
+  useEffect(() => {
+    if (!hydrated || isPublicAuthRoute(pathname)) return;
 
-    if (!token || !isAuthenticated) {
-      void performLogout().then(() => router.replace("/login"));
+    if (!authValid || !isAuthenticated) {
+      void handleSessionExpiration((sessionExpired) => {
+        router.replace(buildLoginRedirectPath(sessionExpired));
+      });
     }
+  }, [authValid, hydrated, isAuthenticated, pathname, router]);
 
-    return () => api.setUnauthorizedHandler(null);
-  }, [hydrated, isAuthenticated, router, locale, token]);
-
-  if (!hydrated || !isAuthenticated || !token) {
+  if (!hydrated || !authValid || !isAuthenticated) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" />
