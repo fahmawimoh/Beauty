@@ -362,7 +362,14 @@
     "productSalesAmount": "Sales Amount",
     "productGrandTotal": "Grand Total",
     "productQuantityTotal": "Total Items Sold",
-    "noProductSales": "No product sales for this period"
+    "noProductSales": "No product sales for this period",
+    "itemName": "Product / Item",
+    "itemType": "Type",
+    "transactionTotal": "Total Amount",
+    "previous": "Previous",
+    "next": "Next",
+    "pageInfo": "Page {page} of {totalPages}",
+    "transactionCount": "{count, plural, one {# transaction} other {# transactions}}"
   },
   "pos": {
     "services": "Services",

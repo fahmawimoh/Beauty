@@ -2,10 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   aggregateProductSales,
   aggregateSalesRows,
+  canGoToNextPage,
+  canGoToPreviousPage,
+  formatTransactionItems,
+  getTotalPages,
   hasTruncatedResults,
   isSummaryConsistent,
   isValidSalesPeriod,
+  normalizePage,
   normalizeSalesPeriod,
+  SALES_PAGE_SIZE,
   verifyProductSalesTotals,
 } from "./sales-overview";
 
@@ -93,5 +99,34 @@ describe("sales overview helpers", () => {
     expect(report.products).toHaveLength(1);
     expect(report.products[0].quantitySold).toBe(3);
     expect(report.products[0].totalSalesAmount).toBe(30);
+  });
+
+  it("calculates total pages for pagination", () => {
+    expect(getTotalPages(0, SALES_PAGE_SIZE)).toBe(0);
+    expect(getTotalPages(5, SALES_PAGE_SIZE)).toBe(1);
+    expect(getTotalPages(10, SALES_PAGE_SIZE)).toBe(1);
+    expect(getTotalPages(11, SALES_PAGE_SIZE)).toBe(2);
+    expect(getTotalPages(100, SALES_PAGE_SIZE)).toBe(10);
+  });
+
+  it("controls pagination navigation", () => {
+    expect(canGoToPreviousPage(1)).toBe(false);
+    expect(canGoToPreviousPage(2)).toBe(true);
+    expect(canGoToNextPage(1, 3)).toBe(true);
+    expect(canGoToNextPage(3, 3)).toBe(false);
+    expect(canGoToNextPage(1, 0)).toBe(false);
+  });
+
+  it("normalizes page within bounds", () => {
+    expect(normalizePage(0, 5)).toBe(1);
+    expect(normalizePage(3, 5)).toBe(3);
+    expect(normalizePage(9, 5)).toBe(5);
+    expect(normalizePage(2, 0)).toBe(1);
+  });
+
+  it("formats transaction item names", () => {
+    expect(formatTransactionItems([])).toBe("—");
+    expect(formatTransactionItems(["Shampoo", "Haircut"])).toBe("Shampoo, Haircut");
+    expect(formatTransactionItems(["Shampoo", "Shampoo"])).toBe("Shampoo");
   });
 });

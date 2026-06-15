@@ -1,4 +1,5 @@
 export const SALES_PERIODS = ["daily", "weekly", "monthly"] as const;
+export const SALES_PAGE_SIZE = 10;
 export type SalesPeriod = (typeof SALES_PERIODS)[number];
 
 export interface SalesPeriodSummary {
@@ -13,6 +14,8 @@ export interface SalesRow {
   invoiceNumber: string;
   customerName?: string | null;
   cashierName: string;
+  itemName: string;
+  itemType: string;
   subTotal: number;
   discountAmount: number;
   totalAmount: number;
@@ -44,6 +47,9 @@ export interface SalesOverview {
   monthly: SalesPeriodSummary;
   sales: SalesRow[];
   totalSalesCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
   productSales: ProductSalesReport;
 }
 
@@ -81,6 +87,31 @@ export function isSummaryConsistent(summary: SalesPeriodSummary): boolean {
 
 export function hasTruncatedResults(totalSalesCount: number, loadedCount: number): boolean {
   return totalSalesCount > loadedCount;
+}
+
+export function getTotalPages(totalCount: number, pageSize: number): number {
+  if (pageSize <= 0) return 0;
+  return Math.ceil(totalCount / pageSize);
+}
+
+export function canGoToPreviousPage(page: number): boolean {
+  return page > 1;
+}
+
+export function canGoToNextPage(page: number, totalPages: number): boolean {
+  return totalPages > 0 && page < totalPages;
+}
+
+export function normalizePage(page: number, totalPages: number): number {
+  if (totalPages <= 0) return 1;
+  if (page < 1) return 1;
+  if (page > totalPages) return totalPages;
+  return page;
+}
+
+export function formatTransactionItems(names: string[]): string {
+  const unique = [...new Set(names.filter((n) => n.trim().length > 0))];
+  return unique.length === 0 ? "—" : unique.join(", ");
 }
 
 export function aggregateProductSales(

@@ -141,10 +141,15 @@ public class ReportService : IReportService
         return new ExpenseDto(expense.Id, expense.BranchId, expense.Category, expense.Description, expense.Amount, expense.ExpenseDate);
     }
 
-    public async Task<SalesOverviewDto> GetSalesOverviewAsync(string period, Guid? branchId = null, CancellationToken cancellationToken = default)
+    public async Task<SalesOverviewDto> GetSalesOverviewAsync(
+        string period,
+        Guid? branchId = null,
+        int page = 1,
+        int pageSize = PaginationHelper.DefaultSalesPageSize,
+        CancellationToken cancellationToken = default)
     {
-        const int maxRows = 500;
         var normalizedPeriod = PeriodRangeHelper.NormalizeSalesPeriod(period);
+        var (normalizedPage, normalizedPageSize, skip) = PaginationHelper.Normalize(page, pageSize);
         var tenantId = RequireTenantId();
 
         var invoiceQuery = _context.Invoices
@@ -168,20 +173,30 @@ public class ReportService : IReportService
         var (tableStart, tableEnd) = PeriodRangeHelper.GetRange(normalizedPeriod);
         var tableQuery = invoiceQuery.Where(i => i.CreatedAt >= tableStart && i.CreatedAt <= tableEnd);
         var totalSalesCount = await tableQuery.CountAsync(cancellationToken);
+        var totalPages = PaginationHelper.GetTotalPages(totalSalesCount, normalizedPageSize);
 
-        var sales = await tableQuery
+        var pageInvoices = await tableQuery
             .OrderByDescending(i => i.CreatedAt)
-            .Take(maxRows)
+            .Skip(skip)
+            .Take(normalizedPageSize)
+            .Include(i => i.Customer)
+            .Include(i => i.Cashier)
+            .Include(i => i.Items)
+            .ToListAsync(cancellationToken);
+
+        var sales = pageInvoices
             .Select(i => new SalesRowDto(
                 i.Id,
                 i.InvoiceNumber,
-                i.Customer != null ? i.Customer.Name : null,
+                i.Customer?.Name,
                 i.Cashier.FullName,
+                SalesTransactionFormatter.FormatItemNames(i.Items),
+                SalesTransactionFormatter.FormatItemTypes(i.Items),
                 i.SubTotal,
                 i.DiscountAmount,
                 i.TotalAmount,
                 i.CreatedAt))
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         var current = normalizedPeriod switch
         {
@@ -193,7 +208,8 @@ public class ReportService : IReportService
         var productSales = await GetProductSalesReportAsync(tenantId, branchId, tableStart, tableEnd, cancellationToken);
 
         return new SalesOverviewDto(
-            normalizedPeriod, tableStart, tableEnd, current, daily, weekly, monthly, sales, totalSalesCount, productSales);
+            normalizedPeriod, tableStart, tableEnd, current, daily, weekly, monthly,
+            sales, totalSalesCount, normalizedPage, normalizedPageSize, totalPages, productSales);
     }
 
     private async Task<ProductSalesReportDto> GetProductSalesReportAsync(

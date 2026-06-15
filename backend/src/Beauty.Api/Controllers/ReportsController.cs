@@ -30,8 +30,13 @@ public class ReportsController : ControllerBase
     [HttpGet("sales")]
     [RoleAuthorize(UserRole.Admin, UserRole.Manager, UserRole.Cashier)]
     public async Task<ActionResult<ApiResponse<SalesOverviewDto>>> GetSalesOverview(
-        [FromQuery] string period = "daily", [FromQuery] Guid? branchId = null, CancellationToken ct = default)
-        => Ok(ApiResponse<SalesOverviewDto>.Ok(await _reportService.GetSalesOverviewAsync(period, branchId, ct)));
+        [FromQuery] string period = "daily",
+        [FromQuery] Guid? branchId = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        CancellationToken ct = default)
+        => Ok(ApiResponse<SalesOverviewDto>.Ok(
+            await _reportService.GetSalesOverviewAsync(period, branchId, page, pageSize, ct)));
 
     [HttpGet("expenses")]
     [RoleAuthorize(UserRole.Admin, UserRole.Manager)]

@@ -7,8 +7,10 @@ import { api } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { formatDiscountDisplay, normalizeDiscountType } from "@/lib/discount";
 import {
-  hasTruncatedResults,
+  canGoToNextPage,
+  canGoToPreviousPage,
   normalizeSalesPeriod,
+  SALES_PAGE_SIZE,
   SALES_PERIODS,
   type SalesOverview,
   type SalesPeriod,
@@ -27,6 +29,7 @@ export default function SalesPage() {
   const fmt = (amount: number) => formatCurrency(amount, locale);
   const { user } = useAuthStore();
   const [period, setPeriod] = useState<SalesPeriod>("daily");
+  const [page, setPage] = useState(1);
   const [overview, setOverview] = useState<SalesOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +41,13 @@ export default function SalesPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.get<SalesOverview>(`/reports/sales?period=${period}${branchParam}`);
+      const data = await api.get<SalesOverview>(
+        `/reports/sales?period=${period}&page=${page}&pageSize=${SALES_PAGE_SIZE}${branchParam}`
+      );
+      if (data.totalPages > 0 && page > data.totalPages) {
+        setPage(data.totalPages);
+        return;
+      }
       setOverview(data);
     } catch (err) {
       setOverview(null);
@@ -46,11 +55,16 @@ export default function SalesPage() {
     } finally {
       setLoading(false);
     }
-  }, [period, user?.branchId, t]);
+  }, [period, page, user?.branchId, t]);
 
   useEffect(() => {
     void loadOverview();
   }, [loadOverview]);
+
+  const handlePeriodChange = (nextPeriod: SalesPeriod) => {
+    setPeriod(normalizeSalesPeriod(nextPeriod));
+    setPage(1);
+  };
 
   const openSaleDetails = async (row: SalesRow) => {
     setDetailLoading(true);
@@ -82,9 +96,9 @@ export default function SalesPage() {
       ]
     : [];
 
-  const truncated = overview
-    ? hasTruncatedResults(overview.totalSalesCount, overview.sales.length)
-    : false;
+  const totalPages = overview?.totalPages ?? 0;
+  const showPagination = (overview?.totalSalesCount ?? 0) > 0;
+  const initialLoading = loading && !overview;
 
   return (
     <div className="space-y-6">
@@ -97,7 +111,7 @@ export default function SalesPage() {
           {SALES_PERIODS.map((p) => (
             <button
               key={p}
-              onClick={() => setPeriod(normalizeSalesPeriod(p))}
+              onClick={() => handlePeriodChange(p)}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                 period === p ? "bg-violet-600 text-white" : "text-slate-600 hover:bg-slate-50"
               }`}
@@ -118,8 +132,8 @@ export default function SalesPage() {
         </div>
       )}
 
-      {loading ? (
-        <p className="text-center text-sm text-slate-400 py-12">{tCommon("loading")}</p>
+      {initialLoading ? (
+        <p className="text-center text-sm text-slate-400 py-8">{tCommon("loading")}</p>
       ) : overview ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -172,137 +186,157 @@ export default function SalesPage() {
               </div>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="font-semibold text-slate-900">{t("productSalesTable")}</h2>
-                <p className="text-xs text-slate-400 mt-1">{t("productSalesSubtitle")}</p>
-              </div>
-              {overview.productSales && (
-                <div className="flex flex-wrap gap-4 text-sm">
-                  <div>
-                    <p className="text-slate-500">{t("productGrandTotal")}</p>
-                    <p className="font-bold text-violet-600">{fmt(overview.productSales.grandTotal)}</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500">{t("productQuantityTotal")}</p>
-                    <p className="font-bold text-slate-900">{overview.productSales.totalQuantitySold}</p>
-                  </div>
-                </div>
-              )}
-            </CardHeader>
-            <CardContent className="p-0">
-              {!overview.productSales || overview.productSales.products.length === 0 ? (
-                <p className="p-8 text-center text-sm text-slate-400">{t("noProductSales")}</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-100 text-start text-slate-500">
-                        <th className="px-4 py-3 font-medium">{tCommon("name")}</th>
-                        <th className="px-4 py-3 font-medium">{t("productType")}</th>
-                        <th className="px-4 py-3 font-medium">{t("productCategory")}</th>
-                        <th className="px-4 py-3 font-medium text-end">{t("quantitySold")}</th>
-                        <th className="px-4 py-3 font-medium text-end">{t("productSalesAmount")}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {overview.productSales.products.map((product) => (
-                        <tr
-                          key={product.productId ?? product.productName}
-                          className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors"
-                        >
-                          <td className="px-4 py-3 font-medium text-slate-900">{product.productName}</td>
-                          <td className="px-4 py-3 text-slate-600">{product.productType}</td>
-                          <td className="px-4 py-3 text-slate-600">{product.productCategory}</td>
-                          <td className="px-4 py-3 text-end">{product.quantitySold}</td>
-                          <td className="px-4 py-3 text-end font-semibold">{fmt(product.totalSalesAmount)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t border-slate-200 bg-slate-50 font-semibold">
-                        <td className="px-4 py-3" colSpan={3}>{t("productGrandTotal")}</td>
-                        <td className="px-4 py-3 text-end">{overview.productSales.totalQuantitySold}</td>
-                        <td className="px-4 py-3 text-end text-violet-700">{fmt(overview.productSales.grandTotal)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-2">
-              <div>
-                <h2 className="font-semibold text-slate-900">{t("salesTable")}</h2>
-                {overview.startDate && overview.endDate && (
-                  <p className="text-xs text-slate-400 mt-1">
-                    {new Date(overview.startDate).toLocaleDateString(dateLocale)} –{" "}
-                    {new Date(overview.endDate).toLocaleDateString(dateLocale)}
-                  </p>
-                )}
-              </div>
-              {truncated && (
-                <p className="text-xs text-amber-600">
-                  {t("truncated", { shown: overview.sales.length, total: overview.totalSalesCount })}
-                </p>
-              )}
-            </CardHeader>
-            <CardContent className="p-0">
-              {overview.sales.length === 0 ? (
-                <p className="p-8 text-center text-sm text-slate-400">{t("noSales")}</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-100 text-start text-slate-500">
-                        <th className="px-4 py-3 font-medium">{t("invoiceNumber")}</th>
-                        <th className="px-4 py-3 font-medium">{tCommon("date")}</th>
-                        <th className="px-4 py-3 font-medium">{t("customer")}</th>
-                        <th className="px-4 py-3 font-medium text-end">{tCommon("subtotal")}</th>
-                        <th className="px-4 py-3 font-medium text-end">{tCommon("discount")}</th>
-                        <th className="px-4 py-3 font-medium text-end">{tCommon("total")}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {overview.sales.map((invoice) => (
-                        <tr
-                          key={invoice.id}
-                          onClick={() => void openSaleDetails(invoice)}
-                          className="border-b border-slate-50 hover:bg-violet-50/50 cursor-pointer transition-colors"
-                        >
-                          <td className="px-4 py-3 font-medium text-violet-700">{invoice.invoiceNumber}</td>
-                          <td className="px-4 py-3 text-slate-600">
-                            {new Date(invoice.createdAt).toLocaleString(dateLocale)}
-                          </td>
-                          <td className="px-4 py-3 text-slate-600">{invoice.customerName || "—"}</td>
-                          <td className="px-4 py-3 text-end">{fmt(invoice.subTotal)}</td>
-                          <td className="px-4 py-3 text-end text-emerald-600">
-                            {invoice.discountAmount > 0 ? fmt(invoice.discountAmount) : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-end font-semibold">{fmt(invoice.totalAmount)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </>
-      ) : !error ? (
-        <p className="text-center text-sm text-slate-400 py-12">{t("noSales")}</p>
       ) : null}
 
-      <Dialog
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        title={t("saleDetails")}
-        size="lg"
-      >
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <div>
+            <h2 className="font-semibold text-slate-900">{t("salesTable")}</h2>
+            {overview?.startDate && overview?.endDate && (
+              <p className="text-xs text-slate-400 mt-1">
+                {new Date(overview.startDate).toLocaleDateString(dateLocale)} –{" "}
+                {new Date(overview.endDate).toLocaleDateString(dateLocale)}
+              </p>
+            )}
+          </div>
+          {overview && (
+            <p className="text-xs text-slate-500">
+              {t("transactionCount", { count: overview.totalSalesCount })}
+            </p>
+          )}
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading && overview ? (
+            <p className="p-8 text-center text-sm text-slate-400">{tCommon("loading")}</p>
+          ) : !overview || overview.sales.length === 0 ? (
+            <p className="p-8 text-center text-sm text-slate-400">{t("noSales")}</p>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-start text-slate-500">
+                      <th className="px-4 py-3 font-medium">{t("invoiceNumber")}</th>
+                      <th className="px-4 py-3 font-medium">{tCommon("date")}</th>
+                      <th className="px-4 py-3 font-medium">{t("itemName")}</th>
+                      <th className="px-4 py-3 font-medium">{t("itemType")}</th>
+                      <th className="px-4 py-3 font-medium text-end">{t("transactionTotal")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {overview.sales.map((invoice) => (
+                      <tr
+                        key={invoice.id}
+                        onClick={() => void openSaleDetails(invoice)}
+                        className="border-b border-slate-50 hover:bg-violet-50/50 cursor-pointer transition-colors"
+                      >
+                        <td className="px-4 py-3 font-medium text-violet-700">{invoice.invoiceNumber}</td>
+                        <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                          {new Date(invoice.createdAt).toLocaleString(dateLocale)}
+                        </td>
+                        <td className="px-4 py-3 text-slate-900 max-w-[200px] truncate" title={invoice.itemName}>
+                          {invoice.itemName}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">{invoice.itemType}</td>
+                        <td className="px-4 py-3 text-end font-semibold">{fmt(invoice.totalAmount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {showPagination && (
+                <div className="flex items-center justify-between gap-4 border-t border-slate-100 px-4 py-3">
+                  <button
+                    type="button"
+                    disabled={!canGoToPreviousPage(page)}
+                    onClick={() => setPage((p) => p - 1)}
+                    className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {t("previous")}
+                  </button>
+                  <span className="text-sm text-slate-500">
+                    {t("pageInfo", { page: overview.page, totalPages: Math.max(totalPages, 1) })}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={!canGoToNextPage(page, totalPages)}
+                    onClick={() => setPage((p) => p + 1)}
+                    className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {t("next")}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {overview && (
+        <Card>
+          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-semibold text-slate-900">{t("productSalesTable")}</h2>
+              <p className="text-xs text-slate-400 mt-1">{t("productSalesSubtitle")}</p>
+            </div>
+            {overview.productSales && (
+              <div className="flex flex-wrap gap-4 text-sm">
+                <div>
+                  <p className="text-slate-500">{t("productGrandTotal")}</p>
+                  <p className="font-bold text-violet-600">{fmt(overview.productSales.grandTotal)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">{t("productQuantityTotal")}</p>
+                  <p className="font-bold text-slate-900">{overview.productSales.totalQuantitySold}</p>
+                </div>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent className="p-0">
+            {!overview.productSales || overview.productSales.products.length === 0 ? (
+              <p className="p-8 text-center text-sm text-slate-400">{t("noProductSales")}</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-start text-slate-500">
+                      <th className="px-4 py-3 font-medium">{tCommon("name")}</th>
+                      <th className="px-4 py-3 font-medium">{t("productType")}</th>
+                      <th className="px-4 py-3 font-medium">{t("productCategory")}</th>
+                      <th className="px-4 py-3 font-medium text-end">{t("quantitySold")}</th>
+                      <th className="px-4 py-3 font-medium text-end">{t("productSalesAmount")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {overview.productSales.products.map((product) => (
+                      <tr
+                        key={product.productId ?? product.productName}
+                        className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors"
+                      >
+                        <td className="px-4 py-3 font-medium text-slate-900">{product.productName}</td>
+                        <td className="px-4 py-3 text-slate-600">{product.productType}</td>
+                        <td className="px-4 py-3 text-slate-600">{product.productCategory}</td>
+                        <td className="px-4 py-3 text-end">{product.quantitySold}</td>
+                        <td className="px-4 py-3 text-end font-semibold">{fmt(product.totalSalesAmount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-slate-200 bg-slate-50 font-semibold">
+                      <td className="px-4 py-3" colSpan={3}>{t("productGrandTotal")}</td>
+                      <td className="px-4 py-3 text-end">{overview.productSales.totalQuantitySold}</td>
+                      <td className="px-4 py-3 text-end text-violet-700">{fmt(overview.productSales.grandTotal)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={!!selected} onClose={() => setSelected(null)} title={t("saleDetails")} size="lg">
         {detailLoading ? (
           <p className="py-8 text-center text-sm text-slate-400">{tCommon("loading")}</p>
         ) : selected ? (
@@ -331,7 +365,7 @@ export default function SalesPage() {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-slate-900">{item.name}</p>
                     <p className="text-xs text-slate-400">
-                      {fmt(item.unitPrice)} × {item.quantity}
+                      {item.itemType} · {fmt(item.unitPrice)} × {item.quantity}
                     </p>
                   </div>
                   <span className="shrink-0 font-medium">{fmt(item.lineTotal)}</span>

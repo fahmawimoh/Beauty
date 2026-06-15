@@ -95,20 +95,13 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard
           title={t("productSalesToday")}
           value={data?.productSalesGrandTotal ?? 0}
           icon={Package}
           isCurrency
           subtitle={t("productQuantityToday", { count: data?.productQuantitySold ?? 0 })}
-        />
-        <StatCard
-          title={t("systemGrandTotal")}
-          value={data?.todayRevenue ?? 0}
-          icon={Banknote}
-          isCurrency
-          subtitle={t("systemGrandTotalHint")}
         />
         <StatCard
           title={t("topProductsCount")}

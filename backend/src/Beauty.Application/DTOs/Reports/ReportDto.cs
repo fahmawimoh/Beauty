@@ -50,6 +50,8 @@ public record SalesRowDto(
     string InvoiceNumber,
     string? CustomerName,
     string CashierName,
+    string ItemName,
+    string ItemType,
     decimal SubTotal,
     decimal DiscountAmount,
     decimal TotalAmount,
@@ -81,5 +83,8 @@ public record SalesOverviewDto(
     SalesPeriodSummaryDto Monthly,
     IReadOnlyList<SalesRowDto> Sales,
     int TotalSalesCount,
+    int Page,
+    int PageSize,
+    int TotalPages,
     ProductSalesReportDto ProductSales
 );

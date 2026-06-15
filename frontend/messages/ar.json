@@ -362,7 +362,14 @@
     "productSalesAmount": "قيمة المبيعات",
     "productGrandTotal": "الإجمالي الكلي",
     "productQuantityTotal": "إجمالي العناصر المباعة",
-    "noProductSales": "لا توجد مبيعات منتجات لهذه الفترة"
+    "noProductSales": "لا توجد مبيعات منتجات لهذه الفترة",
+    "itemName": "المنتج / العنصر",
+    "itemType": "النوع",
+    "transactionTotal": "المبلغ الإجمالي",
+    "previous": "السابق",
+    "next": "التالي",
+    "pageInfo": "صفحة {page} من {totalPages}",
+    "transactionCount": "{count, plural, one {معاملة واحدة} other {# معاملات}}"
   },
   "pos": {
     "services": "الخدمات",
