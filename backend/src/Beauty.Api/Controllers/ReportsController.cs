@@ -38,6 +38,36 @@ public class ReportsController : ControllerBase
         => Ok(ApiResponse<SalesOverviewDto>.Ok(
             await _reportService.GetSalesOverviewAsync(period, branchId, page, pageSize, ct)));
 
+    [HttpGet("sales/summary")]
+    [RoleAuthorize(UserRole.Admin, UserRole.Manager, UserRole.Cashier)]
+    public async Task<ActionResult<ApiResponse<SalesSummaryDto>>> GetSalesSummary(
+        [FromQuery] string period = "daily", [FromQuery] Guid? branchId = null, CancellationToken ct = default)
+        => Ok(ApiResponse<SalesSummaryDto>.Ok(await _reportService.GetSalesSummaryAsync(period, branchId, ct)));
+
+    [HttpGet("sales/transactions")]
+    [RoleAuthorize(UserRole.Admin, UserRole.Manager, UserRole.Cashier)]
+    public async Task<ActionResult<ApiResponse<SalesTransactionsPageDto>>> GetSalesTransactions(
+        [FromQuery] string period = "daily", [FromQuery] Guid? branchId = null,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
+        => Ok(ApiResponse<SalesTransactionsPageDto>.Ok(
+            await _reportService.GetSalesTransactionsPageAsync(period, branchId, page, pageSize, ct)));
+
+    [HttpGet("sales/products")]
+    [RoleAuthorize(UserRole.Admin, UserRole.Manager, UserRole.Cashier)]
+    public async Task<ActionResult<ApiResponse<ProductSalesPageDto>>> GetProductSales(
+        [FromQuery] string period = "daily", [FromQuery] Guid? branchId = null,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
+        => Ok(ApiResponse<ProductSalesPageDto>.Ok(
+            await _reportService.GetProductSalesPageAsync(period, branchId, page, pageSize, ct)));
+
+    [HttpGet("sales/services")]
+    [RoleAuthorize(UserRole.Admin, UserRole.Manager, UserRole.Cashier)]
+    public async Task<ActionResult<ApiResponse<ServiceSalesPageDto>>> GetServiceSales(
+        [FromQuery] string period = "daily", [FromQuery] Guid? branchId = null,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
+        => Ok(ApiResponse<ServiceSalesPageDto>.Ok(
+            await _reportService.GetServiceSalesPageAsync(period, branchId, page, pageSize, ct)));
+
     [HttpGet("expenses")]
     [RoleAuthorize(UserRole.Admin, UserRole.Manager)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<ExpenseDto>>>> GetExpenses(

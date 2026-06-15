@@ -73,6 +73,61 @@ public record ProductSalesReportDto(
     int TotalQuantitySold
 );
 
+public record ServiceSalesRowDto(
+    Guid? ServiceOfferingId,
+    string ServiceName,
+    string ServiceType,
+    string ServiceCategory,
+    int TimesSold,
+    decimal TotalRevenue
+);
+
+public record ServiceSalesReportDto(
+    IReadOnlyList<ServiceSalesRowDto> Services,
+    decimal GrandTotal,
+    int TotalTimesSold
+);
+
+public record ProductSalesPageDto(
+    IReadOnlyList<ProductSalesRowDto> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int TotalPages,
+    decimal GrandTotal,
+    int TotalQuantitySold
+);
+
+public record ServiceSalesPageDto(
+    IReadOnlyList<ServiceSalesRowDto> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int TotalPages,
+    decimal GrandTotal,
+    int TotalTimesSold
+);
+
+public record SalesTransactionsPageDto(
+    IReadOnlyList<SalesRowDto> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int TotalPages,
+    DateTime StartDate,
+    DateTime EndDate
+);
+
+public record SalesSummaryDto(
+    string Period,
+    DateTime StartDate,
+    DateTime EndDate,
+    SalesPeriodSummaryDto Current,
+    SalesPeriodSummaryDto Daily,
+    SalesPeriodSummaryDto Weekly,
+    SalesPeriodSummaryDto Monthly
+);
+
 public record SalesOverviewDto(
     string Period,
     DateTime StartDate,

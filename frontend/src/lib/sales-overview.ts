@@ -1,6 +1,11 @@
 export const SALES_PERIODS = ["daily", "weekly", "monthly"] as const;
 export const SALES_PAGE_SIZE = 10;
+export const SALES_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+export const SALES_TABS = ["transactions", "products", "services"] as const;
+
 export type SalesPeriod = (typeof SALES_PERIODS)[number];
+export type SalesTab = (typeof SALES_TABS)[number];
+export type PageSize = (typeof SALES_PAGE_SIZE_OPTIONS)[number];
 
 export interface SalesPeriodSummary {
   totalSales: number;
@@ -31,13 +36,24 @@ export interface ProductSalesRow {
   totalSalesAmount: number;
 }
 
-export interface ProductSalesReport {
-  products: ProductSalesRow[];
-  grandTotal: number;
-  totalQuantitySold: number;
+export interface ServiceSalesRow {
+  serviceOfferingId?: string | null;
+  serviceName: string;
+  serviceType: string;
+  serviceCategory: string;
+  timesSold: number;
+  totalRevenue: number;
 }
 
-export interface SalesOverview {
+export interface PaginatedResponse<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface SalesSummary {
   period: SalesPeriod;
   startDate: string;
   endDate: string;
@@ -45,16 +61,39 @@ export interface SalesOverview {
   daily: SalesPeriodSummary;
   weekly: SalesPeriodSummary;
   monthly: SalesPeriodSummary;
-  sales: SalesRow[];
-  totalSalesCount: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-  productSales: ProductSalesReport;
 }
+
+export interface SalesTransactionsPage extends PaginatedResponse<SalesRow> {
+  startDate: string;
+  endDate: string;
+}
+
+export interface ProductSalesPage extends PaginatedResponse<ProductSalesRow> {
+  grandTotal: number;
+  totalQuantitySold: number;
+}
+
+export interface ServiceSalesPage extends PaginatedResponse<ServiceSalesRow> {
+  grandTotal: number;
+  totalTimesSold: number;
+}
+
+export interface TabPaginationState {
+  page: number;
+  pageSize: PageSize;
+}
+
+export const DEFAULT_TAB_PAGINATION: TabPaginationState = {
+  page: 1,
+  pageSize: SALES_PAGE_SIZE,
+};
 
 export function isValidSalesPeriod(value: string): value is SalesPeriod {
   return (SALES_PERIODS as readonly string[]).includes(value.toLowerCase());
+}
+
+export function isValidSalesTab(value: string): value is SalesTab {
+  return (SALES_TABS as readonly string[]).includes(value);
 }
 
 export function normalizeSalesPeriod(value: string): SalesPeriod {
@@ -62,31 +101,10 @@ export function normalizeSalesPeriod(value: string): SalesPeriod {
   return isValidSalesPeriod(normalized) ? normalized : "daily";
 }
 
-export function aggregateSalesRows(rows: Pick<SalesRow, "subTotal" | "discountAmount" | "totalAmount">[]): SalesPeriodSummary {
-  if (rows.length === 0) {
-    return { totalSales: 0, totalDiscounts: 0, netRevenue: 0, invoiceCount: 0 };
-  }
-
-  return {
-    totalSales: rows.reduce((sum, row) => sum + row.subTotal, 0),
-    totalDiscounts: rows.reduce((sum, row) => sum + row.discountAmount, 0),
-    netRevenue: rows.reduce((sum, row) => sum + row.totalAmount, 0),
-    invoiceCount: rows.length,
-  };
-}
-
-export function isSummaryConsistent(summary: SalesPeriodSummary): boolean {
-  return (
-    summary.totalSales >= 0 &&
-    summary.totalDiscounts >= 0 &&
-    summary.netRevenue >= 0 &&
-    summary.invoiceCount >= 0 &&
-    summary.totalDiscounts <= summary.totalSales
-  );
-}
-
-export function hasTruncatedResults(totalSalesCount: number, loadedCount: number): boolean {
-  return totalSalesCount > loadedCount;
+export function normalizePageSize(value: number): PageSize {
+  return (SALES_PAGE_SIZE_OPTIONS as readonly number[]).includes(value)
+    ? (value as PageSize)
+    : SALES_PAGE_SIZE;
 }
 
 export function getTotalPages(totalCount: number, pageSize: number): number {
@@ -109,44 +127,16 @@ export function normalizePage(page: number, totalPages: number): number {
   return page;
 }
 
-export function formatTransactionItems(names: string[]): string {
-  const unique = [...new Set(names.filter((n) => n.trim().length > 0))];
-  return unique.length === 0 ? "—" : unique.join(", ");
-}
-
-export function aggregateProductSales(
-  lines: Pick<ProductSalesRow, "productId" | "productName" | "productCategory" | "quantitySold" | "totalSalesAmount">[]
-): ProductSalesReport {
-  const map = new Map<string, ProductSalesRow>();
-
-  for (const line of lines) {
-    const key = line.productId ?? line.productName;
-    const existing = map.get(key);
-    if (existing) {
-      existing.quantitySold += line.quantitySold;
-      existing.totalSalesAmount += line.totalSalesAmount;
-    } else {
-      map.set(key, {
-        productId: line.productId,
-        productName: line.productName,
-        productType: "Product",
-        productCategory: line.productCategory,
-        quantitySold: line.quantitySold,
-        totalSalesAmount: line.totalSalesAmount,
-      });
-    }
-  }
-
-  const products = [...map.values()].sort((a, b) => b.totalSalesAmount - a.totalSalesAmount);
-  return {
-    products,
-    grandTotal: products.reduce((sum, p) => sum + p.totalSalesAmount, 0),
-    totalQuantitySold: products.reduce((sum, p) => sum + p.quantitySold, 0),
-  };
-}
-
-export function verifyProductSalesTotals(report: ProductSalesReport): boolean {
-  const sum = report.products.reduce((acc, p) => acc + p.totalSalesAmount, 0);
-  const qty = report.products.reduce((acc, p) => acc + p.quantitySold, 0);
-  return Math.abs(sum - report.grandTotal) < 0.001 && qty === report.totalQuantitySold;
+export function buildSalesQuery(
+  period: SalesPeriod,
+  pagination: TabPaginationState,
+  branchId?: string
+): string {
+  const params = new URLSearchParams({
+    period,
+    page: String(pagination.page),
+    pageSize: String(pagination.pageSize),
+  });
+  if (branchId) params.set("branchId", branchId);
+  return `?${params.toString()}`;
 }

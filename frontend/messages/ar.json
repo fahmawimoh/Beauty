@@ -369,7 +369,22 @@
     "previous": "السابق",
     "next": "التالي",
     "pageInfo": "صفحة {page} من {totalPages}",
-    "transactionCount": "{count, plural, one {معاملة واحدة} other {# معاملات}}"
+    "transactionCount": "{count, plural, one {معاملة واحدة} other {# معاملات}}",
+    "itemsPerPage": "عدد العناصر في الصفحة",
+    "perPage": "{count} / صفحة",
+    "goToPage": "انتقل إلى صفحة",
+    "tabs": {
+      "transactions": "معاملات المبيعات",
+      "products": "مبيعات المنتجات",
+      "services": "مبيعات الخدمات"
+    },
+    "serviceName": "اسم الخدمة",
+    "serviceType": "النوع",
+    "serviceCategory": "الفئة",
+    "timesSold": "مرات البيع",
+    "serviceRevenue": "إجمالي الإيرادات",
+    "serviceGrandTotal": "الإجمالي الكلي",
+    "noServiceSales": "لا توجد مبيعات خدمات لهذه الفترة"
   },
   "pos": {
     "services": "الخدمات",

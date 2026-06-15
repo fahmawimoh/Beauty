@@ -13,6 +13,16 @@ public interface IReportService
         int page = 1,
         int pageSize = PaginationHelper.DefaultSalesPageSize,
         CancellationToken cancellationToken = default);
+    Task<SalesSummaryDto> GetSalesSummaryAsync(string period, Guid? branchId = null, CancellationToken cancellationToken = default);
+    Task<SalesTransactionsPageDto> GetSalesTransactionsPageAsync(
+        string period, Guid? branchId = null, int page = 1, int pageSize = PaginationHelper.DefaultSalesPageSize,
+        CancellationToken cancellationToken = default);
+    Task<ProductSalesPageDto> GetProductSalesPageAsync(
+        string period, Guid? branchId = null, int page = 1, int pageSize = PaginationHelper.DefaultSalesPageSize,
+        CancellationToken cancellationToken = default);
+    Task<ServiceSalesPageDto> GetServiceSalesPageAsync(
+        string period, Guid? branchId = null, int page = 1, int pageSize = PaginationHelper.DefaultSalesPageSize,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ExpenseDto>> GetExpensesAsync(Guid? branchId = null, DateTime? from = null, DateTime? to = null, CancellationToken cancellationToken = default);
     Task<ExpenseDto> CreateExpenseAsync(CreateExpenseRequest request, CancellationToken cancellationToken = default);
 }

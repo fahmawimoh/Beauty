@@ -369,7 +369,22 @@
     "previous": "Previous",
     "next": "Next",
     "pageInfo": "Page {page} of {totalPages}",
-    "transactionCount": "{count, plural, one {# transaction} other {# transactions}}"
+    "transactionCount": "{count, plural, one {# transaction} other {# transactions}}",
+    "itemsPerPage": "Items per page",
+    "perPage": "{count} / page",
+    "goToPage": "Go to page",
+    "tabs": {
+      "transactions": "Sales Transactions",
+      "products": "Product Sales",
+      "services": "Service Sales"
+    },
+    "serviceName": "Service Name",
+    "serviceType": "Type",
+    "serviceCategory": "Category",
+    "timesSold": "Times Sold",
+    "serviceRevenue": "Total Revenue",
+    "serviceGrandTotal": "Grand Total",
+    "noServiceSales": "No service sales for this period"
   },
   "pos": {
     "services": "Services",

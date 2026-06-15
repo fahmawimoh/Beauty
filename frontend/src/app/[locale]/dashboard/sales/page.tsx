@@ -7,19 +7,41 @@ import { api } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { formatDiscountDisplay, normalizeDiscountType } from "@/lib/discount";
 import {
-  canGoToNextPage,
-  canGoToPreviousPage,
+  buildSalesQuery,
+  DEFAULT_TAB_PAGINATION,
+  normalizePage,
+  normalizePageSize,
   normalizeSalesPeriod,
-  SALES_PAGE_SIZE,
   SALES_PERIODS,
-  type SalesOverview,
+  SALES_TABS,
+  type ProductSalesPage,
   type SalesPeriod,
   type SalesRow,
+  type SalesSummary,
+  type SalesTab,
+  type SalesTransactionsPage,
+  type ServiceSalesPage,
+  type TabPaginationState,
 } from "@/lib/sales-overview";
 import { useAuthStore } from "@/lib/store";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { TablePagination } from "@/components/sales/table-pagination";
 import type { Invoice } from "@/types";
+
+const TAB_ENDPOINTS: Record<SalesTab, string> = {
+  transactions: "/reports/sales/transactions",
+  products: "/reports/sales/products",
+  services: "/reports/sales/services",
+};
+
+function createDefaultPagination(): Record<SalesTab, TabPaginationState> {
+  return {
+    transactions: { ...DEFAULT_TAB_PAGINATION },
+    products: { ...DEFAULT_TAB_PAGINATION },
+    services: { ...DEFAULT_TAB_PAGINATION },
+  };
+}
 
 export default function SalesPage() {
   const t = useTranslations("sales");
@@ -28,42 +50,108 @@ export default function SalesPage() {
   const locale = useLocale();
   const fmt = (amount: number) => formatCurrency(amount, locale);
   const { user } = useAuthStore();
+
   const [period, setPeriod] = useState<SalesPeriod>("daily");
-  const [page, setPage] = useState(1);
-  const [overview, setOverview] = useState<SalesOverview | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<SalesTab>("transactions");
+  const [pagination, setPagination] = useState(createDefaultPagination);
+  const [summary, setSummary] = useState<SalesSummary | null>(null);
+  const [transactions, setTransactions] = useState<SalesTransactionsPage | null>(null);
+  const [products, setProducts] = useState<ProductSalesPage | null>(null);
+  const [services, setServices] = useState<ServiceSalesPage | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [tabLoading, setTabLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Invoice | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  const loadOverview = useCallback(async () => {
-    const branchParam = user?.branchId ? `&branchId=${user.branchId}` : "";
-    setLoading(true);
+  const branchId = user?.branchId;
+
+  const loadSummary = useCallback(async () => {
+    setSummaryLoading(true);
     setError(null);
     try {
-      const data = await api.get<SalesOverview>(
-        `/reports/sales?period=${period}&page=${page}&pageSize=${SALES_PAGE_SIZE}${branchParam}`
-      );
-      if (data.totalPages > 0 && page > data.totalPages) {
-        setPage(data.totalPages);
-        return;
-      }
-      setOverview(data);
+      const query = buildSalesQuery(period, DEFAULT_TAB_PAGINATION, branchId);
+      const data = await api.get<SalesSummary>(`/reports/sales/summary${query}`);
+      setSummary(data);
     } catch (err) {
-      setOverview(null);
+      setSummary(null);
       setError(err instanceof Error ? err.message : t("loadError"));
     } finally {
-      setLoading(false);
+      setSummaryLoading(false);
     }
-  }, [period, page, user?.branchId, t]);
+  }, [period, branchId, t]);
+
+  const loadTabData = useCallback(async () => {
+    const tabPagination = pagination[activeTab];
+    setTabLoading(true);
+    setError(null);
+    try {
+      const query = buildSalesQuery(period, tabPagination, branchId);
+      const endpoint = TAB_ENDPOINTS[activeTab];
+
+      if (activeTab === "transactions") {
+        const data = await api.get<SalesTransactionsPage>(`${endpoint}${query}`);
+        if (data.totalPages > 0 && tabPagination.page > data.totalPages) {
+          setPagination((prev) => ({
+            ...prev,
+            transactions: { ...prev.transactions, page: data.totalPages },
+          }));
+          return;
+        }
+        setTransactions(data);
+      } else if (activeTab === "products") {
+        const data = await api.get<ProductSalesPage>(`${endpoint}${query}`);
+        if (data.totalPages > 0 && tabPagination.page > data.totalPages) {
+          setPagination((prev) => ({
+            ...prev,
+            products: { ...prev.products, page: data.totalPages },
+          }));
+          return;
+        }
+        setProducts(data);
+      } else {
+        const data = await api.get<ServiceSalesPage>(`${endpoint}${query}`);
+        if (data.totalPages > 0 && tabPagination.page > data.totalPages) {
+          setPagination((prev) => ({
+            ...prev,
+            services: { ...prev.services, page: data.totalPages },
+          }));
+          return;
+        }
+        setServices(data);
+      }
+    } catch (err) {
+      if (activeTab === "transactions") setTransactions(null);
+      if (activeTab === "products") setProducts(null);
+      if (activeTab === "services") setServices(null);
+      setError(err instanceof Error ? err.message : t("loadError"));
+    } finally {
+      setTabLoading(false);
+    }
+  }, [activeTab, period, pagination, branchId, t]);
 
   useEffect(() => {
-    void loadOverview();
-  }, [loadOverview]);
+    void loadSummary();
+  }, [loadSummary]);
+
+  useEffect(() => {
+    void loadTabData();
+  }, [loadTabData]);
 
   const handlePeriodChange = (nextPeriod: SalesPeriod) => {
     setPeriod(normalizeSalesPeriod(nextPeriod));
-    setPage(1);
+    setPagination(createDefaultPagination());
+  };
+
+  const handleTabChange = (tab: SalesTab) => {
+    setActiveTab(tab);
+  };
+
+  const updateTabPagination = (tab: SalesTab, updates: Partial<TabPaginationState>) => {
+    setPagination((prev) => ({
+      ...prev,
+      [tab]: { ...prev[tab], ...updates },
+    }));
   };
 
   const openSaleDetails = async (row: SalesRow) => {
@@ -79,12 +167,12 @@ export default function SalesPage() {
   };
 
   const dateLocale = locale === "ar" ? "ar-SA" : "en-US";
-  const current = overview?.current;
-  const periodSummaries = overview
+  const current = summary?.current;
+  const periodSummaries = summary
     ? [
-        { key: "daily" as const, label: tReports("periods.daily"), summary: overview.daily },
-        { key: "weekly" as const, label: tReports("periods.weekly"), summary: overview.weekly },
-        { key: "monthly" as const, label: tReports("periods.monthly"), summary: overview.monthly },
+        { key: "daily" as const, label: tReports("periods.daily"), summary: summary.daily },
+        { key: "weekly" as const, label: tReports("periods.weekly"), summary: summary.weekly },
+        { key: "monthly" as const, label: tReports("periods.monthly"), summary: summary.monthly },
       ]
     : [];
 
@@ -96,9 +184,166 @@ export default function SalesPage() {
       ]
     : [];
 
-  const totalPages = overview?.totalPages ?? 0;
-  const showPagination = (overview?.totalSalesCount ?? 0) > 0;
-  const initialLoading = loading && !overview;
+  const renderTabContent = () => {
+    if (tabLoading && !transactions && !products && !services) {
+      return <p className="p-8 text-center text-sm text-slate-400">{tCommon("loading")}</p>;
+    }
+
+    if (activeTab === "transactions") {
+      if (!transactions || transactions.items.length === 0) {
+        return <p className="p-8 text-center text-sm text-slate-400">{t("noSales")}</p>;
+      }
+      return (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-start text-slate-500">
+                  <th className="px-4 py-3 font-medium">{t("invoiceNumber")}</th>
+                  <th className="px-4 py-3 font-medium">{t("itemType")}</th>
+                  <th className="px-4 py-3 font-medium">{tCommon("date")}</th>
+                  <th className="px-4 py-3 font-medium">{t("itemName")}</th>
+                  <th className="px-4 py-3 font-medium text-end">{t("transactionTotal")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.items.map((invoice) => (
+                  <tr
+                    key={invoice.id}
+                    onClick={() => void openSaleDetails(invoice)}
+                    className="border-b border-slate-50 hover:bg-violet-50/50 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-3 font-medium text-violet-700">{invoice.invoiceNumber}</td>
+                    <td className="px-4 py-3 text-slate-600">{invoice.itemType}</td>
+                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                      {new Date(invoice.createdAt).toLocaleString(dateLocale)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-900 max-w-[200px] truncate" title={invoice.itemName}>
+                      {invoice.itemName}
+                    </td>
+                    <td className="px-4 py-3 text-end font-semibold">{fmt(invoice.totalAmount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <TablePagination
+            page={transactions.page}
+            pageSize={transactions.pageSize}
+            totalPages={transactions.totalPages}
+            totalCount={transactions.totalCount}
+            disabled={tabLoading}
+            onPageChange={(page) => updateTabPagination("transactions", { page: normalizePage(page, transactions.totalPages) })}
+            onPageSizeChange={(pageSize) =>
+              updateTabPagination("transactions", { pageSize: normalizePageSize(pageSize), page: 1 })
+            }
+          />
+        </>
+      );
+    }
+
+    if (activeTab === "products") {
+      if (!products || products.items.length === 0) {
+        return <p className="p-8 text-center text-sm text-slate-400">{t("noProductSales")}</p>;
+      }
+      return (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-start text-slate-500">
+                  <th className="px-4 py-3 font-medium">{tCommon("name")}</th>
+                  <th className="px-4 py-3 font-medium">{t("productType")}</th>
+                  <th className="px-4 py-3 font-medium">{t("productCategory")}</th>
+                  <th className="px-4 py-3 font-medium text-end">{t("quantitySold")}</th>
+                  <th className="px-4 py-3 font-medium text-end">{t("productSalesAmount")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.items.map((product) => (
+                  <tr key={product.productId ?? product.productName} className="border-b border-slate-50">
+                    <td className="px-4 py-3 font-medium text-slate-900">{product.productName}</td>
+                    <td className="px-4 py-3 text-slate-600">{product.productType}</td>
+                    <td className="px-4 py-3 text-slate-600">{product.productCategory}</td>
+                    <td className="px-4 py-3 text-end">{product.quantitySold}</td>
+                    <td className="px-4 py-3 text-end font-semibold">{fmt(product.totalSalesAmount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-slate-200 bg-slate-50 font-semibold">
+                  <td className="px-4 py-3" colSpan={3}>{t("productGrandTotal")}</td>
+                  <td className="px-4 py-3 text-end">{products.totalQuantitySold}</td>
+                  <td className="px-4 py-3 text-end text-violet-700">{fmt(products.grandTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <TablePagination
+            page={products.page}
+            pageSize={products.pageSize}
+            totalPages={products.totalPages}
+            totalCount={products.totalCount}
+            disabled={tabLoading}
+            onPageChange={(page) => updateTabPagination("products", { page: normalizePage(page, products.totalPages) })}
+            onPageSizeChange={(pageSize) =>
+              updateTabPagination("products", { pageSize: normalizePageSize(pageSize), page: 1 })
+            }
+          />
+        </>
+      );
+    }
+
+    if (!services || services.items.length === 0) {
+      return <p className="p-8 text-center text-sm text-slate-400">{t("noServiceSales")}</p>;
+    }
+    return (
+      <>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 text-start text-slate-500">
+                <th className="px-4 py-3 font-medium">{t("serviceName")}</th>
+                <th className="px-4 py-3 font-medium">{t("serviceType")}</th>
+                <th className="px-4 py-3 font-medium">{t("serviceCategory")}</th>
+                <th className="px-4 py-3 font-medium text-end">{t("timesSold")}</th>
+                <th className="px-4 py-3 font-medium text-end">{t("serviceRevenue")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {services.items.map((service) => (
+                <tr key={service.serviceOfferingId ?? service.serviceName} className="border-b border-slate-50">
+                  <td className="px-4 py-3 font-medium text-slate-900">{service.serviceName}</td>
+                  <td className="px-4 py-3 text-slate-600">{service.serviceType}</td>
+                  <td className="px-4 py-3 text-slate-600">{service.serviceCategory}</td>
+                  <td className="px-4 py-3 text-end">{service.timesSold}</td>
+                  <td className="px-4 py-3 text-end font-semibold">{fmt(service.totalRevenue)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-slate-200 bg-slate-50 font-semibold">
+                <td className="px-4 py-3" colSpan={3}>{t("serviceGrandTotal")}</td>
+                <td className="px-4 py-3 text-end">{services.totalTimesSold}</td>
+                <td className="px-4 py-3 text-end text-violet-700">{fmt(services.grandTotal)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <TablePagination
+          page={services.page}
+          pageSize={services.pageSize}
+          totalPages={services.totalPages}
+          totalCount={services.totalCount}
+          disabled={tabLoading}
+          onPageChange={(page) => updateTabPagination("services", { page: normalizePage(page, services.totalPages) })}
+          onPageSizeChange={(pageSize) =>
+            updateTabPagination("services", { pageSize: normalizePageSize(pageSize), page: 1 })
+          }
+        />
+      </>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -126,15 +371,21 @@ export default function SalesPage() {
         <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <AlertCircle className="h-5 w-5 shrink-0" />
           <span className="flex-1">{error}</span>
-          <button onClick={() => void loadOverview()} className="font-medium underline">
+          <button
+            onClick={() => {
+              void loadSummary();
+              void loadTabData();
+            }}
+            className="font-medium underline"
+          >
             {t("retry")}
           </button>
         </div>
       )}
 
-      {initialLoading ? (
+      {summaryLoading && !summary ? (
         <p className="text-center text-sm text-slate-400 py-8">{tCommon("loading")}</p>
-      ) : overview ? (
+      ) : summary ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {stats.map((s) => (
@@ -163,7 +414,7 @@ export default function SalesPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {periodSummaries.map(({ key, label, summary }) => (
+                {periodSummaries.map(({ key, label, summary: periodSummary }) => (
                   <div
                     key={key}
                     className={`rounded-lg border p-4 ${
@@ -171,15 +422,15 @@ export default function SalesPage() {
                     }`}
                   >
                     <p className="text-sm font-medium text-slate-600">{label}</p>
-                    <p className="mt-1 text-lg font-bold text-slate-900">{fmt(summary.netRevenue)}</p>
+                    <p className="mt-1 text-lg font-bold text-slate-900">{fmt(periodSummary.netRevenue)}</p>
                     <p className="mt-1 text-xs text-slate-400">
                       {t("salesAndDiscounts", {
-                        sales: fmt(summary.totalSales),
-                        discounts: fmt(summary.totalDiscounts),
+                        sales: fmt(periodSummary.totalSales),
+                        discounts: fmt(periodSummary.totalDiscounts),
                       })}
                     </p>
                     <p className="text-xs text-slate-400">
-                      {t("invoiceCount", { count: summary.invoiceCount })}
+                      {t("invoiceCount", { count: periodSummary.invoiceCount })}
                     </p>
                   </div>
                 ))}
@@ -190,151 +441,41 @@ export default function SalesPage() {
       ) : null}
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <div>
-            <h2 className="font-semibold text-slate-900">{t("salesTable")}</h2>
-            {overview?.startDate && overview?.endDate && (
-              <p className="text-xs text-slate-400 mt-1">
-                {new Date(overview.startDate).toLocaleDateString(dateLocale)} –{" "}
-                {new Date(overview.endDate).toLocaleDateString(dateLocale)}
-              </p>
-            )}
-          </div>
-          {overview && (
-            <p className="text-xs text-slate-500">
-              {t("transactionCount", { count: overview.totalSalesCount })}
-            </p>
-          )}
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading && overview ? (
-            <p className="p-8 text-center text-sm text-slate-400">{tCommon("loading")}</p>
-          ) : !overview || overview.sales.length === 0 ? (
-            <p className="p-8 text-center text-sm text-slate-400">{t("noSales")}</p>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-start text-slate-500">
-                      <th className="px-4 py-3 font-medium">{t("invoiceNumber")}</th>
-                      <th className="px-4 py-3 font-medium">{tCommon("date")}</th>
-                      <th className="px-4 py-3 font-medium">{t("itemName")}</th>
-                      <th className="px-4 py-3 font-medium">{t("itemType")}</th>
-                      <th className="px-4 py-3 font-medium text-end">{t("transactionTotal")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {overview.sales.map((invoice) => (
-                      <tr
-                        key={invoice.id}
-                        onClick={() => void openSaleDetails(invoice)}
-                        className="border-b border-slate-50 hover:bg-violet-50/50 cursor-pointer transition-colors"
-                      >
-                        <td className="px-4 py-3 font-medium text-violet-700">{invoice.invoiceNumber}</td>
-                        <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                          {new Date(invoice.createdAt).toLocaleString(dateLocale)}
-                        </td>
-                        <td className="px-4 py-3 text-slate-900 max-w-[200px] truncate" title={invoice.itemName}>
-                          {invoice.itemName}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600">{invoice.itemType}</td>
-                        <td className="px-4 py-3 text-end font-semibold">{fmt(invoice.totalAmount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {showPagination && (
-                <div className="flex items-center justify-between gap-4 border-t border-slate-100 px-4 py-3">
-                  <button
-                    type="button"
-                    disabled={!canGoToPreviousPage(page)}
-                    onClick={() => setPage((p) => p - 1)}
-                    className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {t("previous")}
-                  </button>
-                  <span className="text-sm text-slate-500">
-                    {t("pageInfo", { page: overview.page, totalPages: Math.max(totalPages, 1) })}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={!canGoToNextPage(page, totalPages)}
-                    onClick={() => setPage((p) => p + 1)}
-                    className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {t("next")}
-                  </button>
-                </div>
+        <CardHeader className="space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-semibold text-slate-900">{t(`tabs.${activeTab}`)}</h2>
+              {summary?.startDate && summary?.endDate && (
+                <p className="text-xs text-slate-400 mt-1">
+                  {new Date(summary.startDate).toLocaleDateString(dateLocale)} –{" "}
+                  {new Date(summary.endDate).toLocaleDateString(dateLocale)}
+                </p>
               )}
-            </>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
+            {SALES_TABS.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => handleTabChange(tab)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  activeTab === tab ? "bg-white text-violet-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {t(`tabs.${tab}`)}
+              </button>
+            ))}
+          </div>
+        </CardHeader>
+        <CardContent className="p-0 relative">
+          {tabLoading && (transactions || products || services) && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60">
+              <p className="text-sm text-slate-500">{tCommon("loading")}</p>
+            </div>
           )}
+          {renderTabContent()}
         </CardContent>
       </Card>
-
-      {overview && (
-        <Card>
-          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="font-semibold text-slate-900">{t("productSalesTable")}</h2>
-              <p className="text-xs text-slate-400 mt-1">{t("productSalesSubtitle")}</p>
-            </div>
-            {overview.productSales && (
-              <div className="flex flex-wrap gap-4 text-sm">
-                <div>
-                  <p className="text-slate-500">{t("productGrandTotal")}</p>
-                  <p className="font-bold text-violet-600">{fmt(overview.productSales.grandTotal)}</p>
-                </div>
-                <div>
-                  <p className="text-slate-500">{t("productQuantityTotal")}</p>
-                  <p className="font-bold text-slate-900">{overview.productSales.totalQuantitySold}</p>
-                </div>
-              </div>
-            )}
-          </CardHeader>
-          <CardContent className="p-0">
-            {!overview.productSales || overview.productSales.products.length === 0 ? (
-              <p className="p-8 text-center text-sm text-slate-400">{t("noProductSales")}</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-start text-slate-500">
-                      <th className="px-4 py-3 font-medium">{tCommon("name")}</th>
-                      <th className="px-4 py-3 font-medium">{t("productType")}</th>
-                      <th className="px-4 py-3 font-medium">{t("productCategory")}</th>
-                      <th className="px-4 py-3 font-medium text-end">{t("quantitySold")}</th>
-                      <th className="px-4 py-3 font-medium text-end">{t("productSalesAmount")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {overview.productSales.products.map((product) => (
-                      <tr
-                        key={product.productId ?? product.productName}
-                        className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors"
-                      >
-                        <td className="px-4 py-3 font-medium text-slate-900">{product.productName}</td>
-                        <td className="px-4 py-3 text-slate-600">{product.productType}</td>
-                        <td className="px-4 py-3 text-slate-600">{product.productCategory}</td>
-                        <td className="px-4 py-3 text-end">{product.quantitySold}</td>
-                        <td className="px-4 py-3 text-end font-semibold">{fmt(product.totalSalesAmount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t border-slate-200 bg-slate-50 font-semibold">
-                      <td className="px-4 py-3" colSpan={3}>{t("productGrandTotal")}</td>
-                      <td className="px-4 py-3 text-end">{overview.productSales.totalQuantitySold}</td>
-                      <td className="px-4 py-3 text-end text-violet-700">{fmt(overview.productSales.grandTotal)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       <Dialog open={!!selected} onClose={() => setSelected(null)} title={t("saleDetails")} size="lg">
         {detailLoading ? (

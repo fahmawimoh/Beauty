@@ -8,7 +8,8 @@ public class PaginationHelperTests
     [InlineData(0, 0, 1, 10)]
     [InlineData(-1, 0, 1, 10)]
     [InlineData(1, 10, 1, 10)]
-    [InlineData(3, 10, 3, 10)]
+    [InlineData(3, 25, 3, 25)]
+    [InlineData(2, 99, 2, 10)]
     public void Normalize_ClampsInvalidValues(int page, int pageSize, int expectedPage, int expectedSize)
     {
         var (normalizedPage, normalizedSize, skip) = PaginationHelper.Normalize(page, pageSize);

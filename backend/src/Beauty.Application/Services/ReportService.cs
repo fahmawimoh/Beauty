@@ -253,6 +253,224 @@ public class ReportService : IReportService
         return ProductSalesCalculator.Calculate(lines, topLimit);
     }
 
+    public async Task<SalesSummaryDto> GetSalesSummaryAsync(
+        string period, Guid? branchId = null, CancellationToken cancellationToken = default)
+    {
+        var normalizedPeriod = PeriodRangeHelper.NormalizeSalesPeriod(period);
+        var tenantId = RequireTenantId();
+        var (start, end) = PeriodRangeHelper.GetRange(normalizedPeriod);
+
+        var invoiceQuery = BuildCompletedInvoiceQuery(tenantId, branchId);
+        var daily = await GetSummaryForPeriodAsync(invoiceQuery, "daily", cancellationToken);
+        var weekly = await GetSummaryForPeriodAsync(invoiceQuery, "weekly", cancellationToken);
+        var monthly = await GetSummaryForPeriodAsync(invoiceQuery, "monthly", cancellationToken);
+
+        var current = normalizedPeriod switch
+        {
+            "weekly" => weekly,
+            "monthly" => monthly,
+            _ => daily
+        };
+
+        return new SalesSummaryDto(normalizedPeriod, start, end, current, daily, weekly, monthly);
+    }
+
+    public async Task<SalesTransactionsPageDto> GetSalesTransactionsPageAsync(
+        string period, Guid? branchId = null, int page = 1, int pageSize = PaginationHelper.DefaultSalesPageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedPeriod = PeriodRangeHelper.NormalizeSalesPeriod(period);
+        var (normalizedPage, normalizedPageSize, skip) = PaginationHelper.Normalize(page, pageSize);
+        var tenantId = RequireTenantId();
+        var (start, end) = PeriodRangeHelper.GetRange(normalizedPeriod);
+
+        var tableQuery = BuildCompletedInvoiceQuery(tenantId, branchId)
+            .Where(i => i.CreatedAt >= start && i.CreatedAt <= end);
+
+        var totalCount = await tableQuery.CountAsync(cancellationToken);
+        var totalPages = PaginationHelper.GetTotalPages(totalCount, normalizedPageSize);
+
+        var pageInvoices = await tableQuery
+            .OrderByDescending(i => i.CreatedAt)
+            .Skip(skip)
+            .Take(normalizedPageSize)
+            .Include(i => i.Customer)
+            .Include(i => i.Cashier)
+            .Include(i => i.Items)
+            .ToListAsync(cancellationToken);
+
+        var items = pageInvoices
+            .Select(i => new SalesRowDto(
+                i.Id, i.InvoiceNumber, i.Customer?.Name, i.Cashier.FullName,
+                SalesTransactionFormatter.FormatItemNames(i.Items),
+                SalesTransactionFormatter.FormatItemTypes(i.Items),
+                i.SubTotal, i.DiscountAmount, i.TotalAmount, i.CreatedAt))
+            .ToList();
+
+        return new SalesTransactionsPageDto(
+            items, totalCount, normalizedPage, normalizedPageSize, totalPages, start, end);
+    }
+
+    public async Task<ProductSalesPageDto> GetProductSalesPageAsync(
+        string period, Guid? branchId = null, int page = 1, int pageSize = PaginationHelper.DefaultSalesPageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedPeriod = PeriodRangeHelper.NormalizeSalesPeriod(period);
+        var (normalizedPage, normalizedPageSize, skip) = PaginationHelper.Normalize(page, pageSize);
+        var tenantId = RequireTenantId();
+        var (start, end) = PeriodRangeHelper.GetRange(normalizedPeriod);
+
+        var query = BuildProductItemQuery(tenantId, branchId, start, end);
+        var grandTotal = await query.SumAsync(ii => ii.LineTotal, cancellationToken);
+        var totalQuantity = await query.SumAsync(ii => ii.Quantity, cancellationToken);
+
+        var groupedQuery = query
+            .GroupBy(ii => new
+            {
+                ii.ProductId,
+                ProductName = ii.Product != null ? ii.Product.Name : ii.Name,
+                ProductSku = ii.Product != null ? ii.Product.Sku : null
+            })
+            .Select(g => new
+            {
+                g.Key.ProductId,
+                g.Key.ProductName,
+                g.Key.ProductSku,
+                QuantitySold = g.Sum(ii => ii.Quantity),
+                TotalSalesAmount = g.Sum(ii => ii.LineTotal)
+            });
+
+        var totalCount = await groupedQuery.CountAsync(cancellationToken);
+        var totalPages = PaginationHelper.GetTotalPages(totalCount, normalizedPageSize);
+
+        var rows = await groupedQuery
+            .OrderByDescending(p => p.TotalSalesAmount)
+            .Skip(skip)
+            .Take(normalizedPageSize)
+            .ToListAsync(cancellationToken);
+
+        var items = rows.Select(g => new ProductSalesRowDto(
+            g.ProductId,
+            g.ProductName,
+            "Product",
+            g.ProductSku ?? "General",
+            g.QuantitySold,
+            g.TotalSalesAmount)).ToList();
+
+        return new ProductSalesPageDto(
+            items, totalCount, normalizedPage, normalizedPageSize, totalPages, grandTotal, totalQuantity);
+    }
+
+    public async Task<ServiceSalesPageDto> GetServiceSalesPageAsync(
+        string period, Guid? branchId = null, int page = 1, int pageSize = PaginationHelper.DefaultSalesPageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedPeriod = PeriodRangeHelper.NormalizeSalesPeriod(period);
+        var (normalizedPage, normalizedPageSize, skip) = PaginationHelper.Normalize(page, pageSize);
+        var tenantId = RequireTenantId();
+        var (start, end) = PeriodRangeHelper.GetRange(normalizedPeriod);
+
+        var query = BuildServiceItemQuery(tenantId, branchId, start, end);
+        var grandTotal = await query.SumAsync(ii => ii.LineTotal, cancellationToken);
+        var totalTimesSold = await query.SumAsync(ii => ii.Quantity, cancellationToken);
+
+        var groupedQuery = query
+            .GroupBy(ii => new
+            {
+                ii.ServiceOfferingId,
+                ServiceName = ii.ServiceOffering != null ? ii.ServiceOffering.Name : ii.Name
+            })
+            .Select(g => new
+            {
+                g.Key.ServiceOfferingId,
+                g.Key.ServiceName,
+                TimesSold = g.Sum(ii => ii.Quantity),
+                TotalRevenue = g.Sum(ii => ii.LineTotal)
+            });
+
+        var totalCount = await groupedQuery.CountAsync(cancellationToken);
+        var totalPages = PaginationHelper.GetTotalPages(totalCount, normalizedPageSize);
+
+        var pageRows = await groupedQuery
+            .OrderByDescending(x => x.TotalRevenue)
+            .Skip(skip)
+            .Take(normalizedPageSize)
+            .ToListAsync(cancellationToken);
+
+        var serviceIds = pageRows
+            .Where(r => r.ServiceOfferingId.HasValue)
+            .Select(r => r.ServiceOfferingId!.Value)
+            .Distinct()
+            .ToList();
+
+        var categoryLookup = await _context.ServiceOfferingCategories
+            .Where(soc => serviceIds.Contains(soc.ServiceOfferingId))
+            .Include(soc => soc.Category)
+            .ToListAsync(cancellationToken);
+
+        var categoriesByService = categoryLookup
+            .GroupBy(soc => soc.ServiceOfferingId)
+            .ToDictionary(
+                g => g.Key,
+                g => string.Join(", ", g.Select(x => x.Category.Name).Distinct().OrderBy(n => n)));
+
+        var items = pageRows.Select(r => new ServiceSalesRowDto(
+            r.ServiceOfferingId,
+            r.ServiceName,
+            "Service",
+            r.ServiceOfferingId.HasValue && categoriesByService.TryGetValue(r.ServiceOfferingId.Value, out var cat)
+                ? cat
+                : "General",
+            r.TimesSold,
+            r.TotalRevenue)).ToList();
+
+        return new ServiceSalesPageDto(
+            items, totalCount, normalizedPage, normalizedPageSize, totalPages, grandTotal, totalTimesSold);
+    }
+
+    private IQueryable<Invoice> BuildCompletedInvoiceQuery(Guid tenantId, Guid? branchId)
+    {
+        var query = _context.Invoices
+            .Where(i => i.TenantId == tenantId && i.Status == InvoiceStatus.Completed);
+        if (branchId.HasValue) query = query.Where(i => i.BranchId == branchId);
+        return query;
+    }
+
+    private IQueryable<InvoiceItem> BuildProductItemQuery(Guid tenantId, Guid? branchId, DateTime start, DateTime end)
+    {
+        var query = _context.InvoiceItems
+            .Where(ii => ii.ItemType == InvoiceItemType.Product
+                && ii.Invoice.TenantId == tenantId
+                && ii.Invoice.Status == InvoiceStatus.Completed
+                && ii.Invoice.CreatedAt >= start
+                && ii.Invoice.CreatedAt <= end);
+        if (branchId.HasValue) query = query.Where(ii => ii.Invoice.BranchId == branchId);
+        return query;
+    }
+
+    private IQueryable<InvoiceItem> BuildServiceItemQuery(Guid tenantId, Guid? branchId, DateTime start, DateTime end)
+    {
+        var query = _context.InvoiceItems
+            .Where(ii => ii.ItemType == InvoiceItemType.Service
+                && ii.Invoice.TenantId == tenantId
+                && ii.Invoice.Status == InvoiceStatus.Completed
+                && ii.Invoice.CreatedAt >= start
+                && ii.Invoice.CreatedAt <= end);
+        if (branchId.HasValue) query = query.Where(ii => ii.Invoice.BranchId == branchId);
+        return query;
+    }
+
+    private static async Task<SalesPeriodSummaryDto> GetSummaryForPeriodAsync(
+        IQueryable<Invoice> invoiceQuery, string period, CancellationToken cancellationToken)
+    {
+        var (start, end) = PeriodRangeHelper.GetRange(period);
+        var totals = await invoiceQuery
+            .Where(i => i.CreatedAt >= start && i.CreatedAt <= end)
+            .Select(i => new InvoiceTotals(i.SubTotal, i.DiscountAmount, i.TotalAmount))
+            .ToListAsync(cancellationToken);
+        return SalesSummaryCalculator.Calculate(totals);
+    }
+
     private Guid RequireTenantId() => _currentUser.TenantId ?? throw new UnauthorizedAccessException();
 
     private static (DateTime start, DateTime end) GetPeriodRange(string period) => PeriodRangeHelper.GetRange(period);
