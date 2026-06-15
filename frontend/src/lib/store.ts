@@ -8,6 +8,8 @@ import { performLogout } from "./auth";
 interface AuthState {
   user: LoginResponse | null;
   isAuthenticated: boolean;
+  hasHydrated: boolean;
+  setHasHydrated: (value: boolean) => void;
   login: (email: string, password: string, branchId?: string) => Promise<LoginResponse>;
   register: (data: {
     businessName: string;
@@ -27,18 +29,20 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       isAuthenticated: false,
+      hasHydrated: false,
+      setHasHydrated: (value) => set({ hasHydrated: value }),
 
       login: async (email, password, branchId) => {
         const data = await api.post<LoginResponse>("/auth/login", { email, password, branchId });
         api.setToken(data.token);
-        set({ user: data, isAuthenticated: true });
+        set({ user: data, isAuthenticated: true, hasHydrated: true });
         return data;
       },
 
       register: async (data) => {
         const result = await api.post<LoginResponse>("/auth/register", data);
         api.setToken(result.token);
-        set({ user: result, isAuthenticated: true });
+        set({ user: result, isAuthenticated: true, hasHydrated: true });
       },
 
       logout: async () => {
@@ -54,7 +58,21 @@ export const useAuthStore = create<AuthState>()(
         }
       },
     }),
-    { name: "auth-storage" }
+    {
+      name: "auth-storage",
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+      }),
+      onRehydrateStorage: () => (state) => {
+        const token =
+          (typeof window !== "undefined" ? localStorage.getItem("token") : null) ??
+          state?.user?.token ??
+          null;
+        if (token) api.setToken(token);
+        useAuthStore.setState({ hasHydrated: true });
+      },
+    }
   )
 );
 

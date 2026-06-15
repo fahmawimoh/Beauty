@@ -125,7 +125,8 @@ public record SalesSummaryDto(
     SalesPeriodSummaryDto Current,
     SalesPeriodSummaryDto Daily,
     SalesPeriodSummaryDto Weekly,
-    SalesPeriodSummaryDto Monthly
+    SalesPeriodSummaryDto Monthly,
+    SalesPeriodSummaryDto Yearly
 );
 
 public record SalesOverviewDto(
@@ -136,6 +137,7 @@ public record SalesOverviewDto(
     SalesPeriodSummaryDto Daily,
     SalesPeriodSummaryDto Weekly,
     SalesPeriodSummaryDto Monthly,
+    SalesPeriodSummaryDto Yearly,
     IReadOnlyList<SalesRowDto> Sales,
     int TotalSalesCount,
     int Page,

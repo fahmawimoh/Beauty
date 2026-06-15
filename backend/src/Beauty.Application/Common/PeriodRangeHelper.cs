@@ -4,7 +4,7 @@ public static class PeriodRangeHelper
 {
   public static readonly IReadOnlySet<string> SalesPeriods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
   {
-    "daily", "weekly", "monthly"
+    "daily", "weekly", "monthly", "yearly"
   };
 
   public static string NormalizeSalesPeriod(string period)

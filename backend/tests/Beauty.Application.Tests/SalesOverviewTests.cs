@@ -69,6 +69,7 @@ public class PeriodRangeHelperTests
     [InlineData("daily")]
     [InlineData("weekly")]
     [InlineData("monthly")]
+    [InlineData("yearly")]
     public void NormalizeSalesPeriod_ValidPeriod_ReturnsLowercase(string period)
     {
         Assert.Equal(period, PeriodRangeHelper.NormalizeSalesPeriod(period));
@@ -77,7 +78,6 @@ public class PeriodRangeHelperTests
 
     [Theory]
     [InlineData("")]
-    [InlineData("yearly")]
     [InlineData("invalid")]
     public void NormalizeSalesPeriod_InvalidPeriod_DefaultsToDaily(string period)
     {

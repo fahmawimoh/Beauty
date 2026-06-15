@@ -169,6 +169,7 @@ public class ReportService : IReportService
         var daily = await GetSummaryForPeriodAsync("daily");
         var weekly = await GetSummaryForPeriodAsync("weekly");
         var monthly = await GetSummaryForPeriodAsync("monthly");
+        var yearly = await GetSummaryForPeriodAsync("yearly");
 
         var (tableStart, tableEnd) = PeriodRangeHelper.GetRange(normalizedPeriod);
         var tableQuery = invoiceQuery.Where(i => i.CreatedAt >= tableStart && i.CreatedAt <= tableEnd);
@@ -202,13 +203,14 @@ public class ReportService : IReportService
         {
             "weekly" => weekly,
             "monthly" => monthly,
+            "yearly" => yearly,
             _ => daily
         };
 
         var productSales = await GetProductSalesReportAsync(tenantId, branchId, tableStart, tableEnd, cancellationToken);
 
         return new SalesOverviewDto(
-            normalizedPeriod, tableStart, tableEnd, current, daily, weekly, monthly,
+            normalizedPeriod, tableStart, tableEnd, current, daily, weekly, monthly, yearly,
             sales, totalSalesCount, normalizedPage, normalizedPageSize, totalPages, productSales);
     }
 
@@ -264,15 +266,17 @@ public class ReportService : IReportService
         var daily = await GetSummaryForPeriodAsync(invoiceQuery, "daily", cancellationToken);
         var weekly = await GetSummaryForPeriodAsync(invoiceQuery, "weekly", cancellationToken);
         var monthly = await GetSummaryForPeriodAsync(invoiceQuery, "monthly", cancellationToken);
+        var yearly = await GetSummaryForPeriodAsync(invoiceQuery, "yearly", cancellationToken);
 
         var current = normalizedPeriod switch
         {
             "weekly" => weekly,
             "monthly" => monthly,
+            "yearly" => yearly,
             _ => daily
         };
 
-        return new SalesSummaryDto(normalizedPeriod, start, end, current, daily, weekly, monthly);
+        return new SalesSummaryDto(normalizedPeriod, start, end, current, daily, weekly, monthly, yearly);
     }
 
     public async Task<SalesTransactionsPageDto> GetSalesTransactionsPageAsync(

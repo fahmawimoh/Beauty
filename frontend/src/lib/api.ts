@@ -29,6 +29,10 @@ class ApiClient {
     return this.token;
   }
 
+  hasToken(): boolean {
+    return Boolean(this.getToken());
+  }
+
   private async handleUnauthorized() {
     if (this.handlingUnauthorized || !this.unauthorizedHandler) return;
     this.handlingUnauthorized = true;

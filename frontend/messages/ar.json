@@ -136,7 +136,8 @@
     "productBreakdownHint": "إجماليات كل منتج لليوم",
     "productGrandTotal": "إجمالي المنتجات",
     "noProductSales": "لا توجد مبيعات منتجات اليوم",
-    "quantitySold": "{count} مباع"
+    "quantitySold": "{count} مباع",
+    "quantitySoldHeader": "الكمية المباعة"
   },
   "customers": {
     "title": "العملاء",
@@ -384,7 +385,28 @@
     "timesSold": "مرات البيع",
     "serviceRevenue": "إجمالي الإيرادات",
     "serviceGrandTotal": "الإجمالي الكلي",
-    "noServiceSales": "لا توجد مبيعات خدمات لهذه الفترة"
+    "noServiceSales": "لا توجد مبيعات خدمات لهذه الفترة",
+    "transactionId": "معرف المعاملة",
+    "productId": "معرف المنتج",
+    "serviceId": "معرف الخدمة",
+    "filters": {
+      "timeRange": "الفترة الزمنية",
+      "quickPeriod": "فترة سريعة",
+      "fromDate": "من",
+      "toDate": "إلى",
+      "type": "النوع / الفئة",
+      "apply": "تطبيق",
+      "reset": "إعادة تعيين",
+      "clearAll": "مسح الفلاتر",
+      "transactionId": "المعرف",
+      "transactionSearch": "بحث معرف المعاملة",
+      "transactionSearchPlaceholder": "رقم الفاتورة أو معرف المعاملة (كامل أو جزئي)",
+      "transactionSearchHint": "ابحث برقم الفاتورة أو معرف المعاملة — تطابق كامل أو جزئي",
+      "idPlaceholder": "المعرف الكامل",
+      "typePlaceholderTransactions": "منتج، خدمة…",
+      "typePlaceholderProducts": "رمز SKU أو الفئة",
+      "typePlaceholderServices": "فئة الخدمة"
+    }
   },
   "pos": {
     "services": "الخدمات",

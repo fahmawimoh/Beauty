@@ -17,18 +17,25 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login, isAuthenticated, user } = useAuthStore();
+  const { login } = useAuthStore();
   const router = useRouter();
   const t = useTranslations("auth");
   const tCommon = useTranslations("common");
   const getError = useApiError();
 
   useEffect(() => {
-    const token = api.getToken();
-    if (token && isAuthenticated) {
-      router.replace(user?.role === "Cashier" ? "/pos" : "/dashboard");
-    }
-  }, [isAuthenticated, router, user?.role]);
+    const redirectIfAuthenticated = () => {
+      const { isAuthenticated, user } = useAuthStore.getState();
+      const token = api.getToken();
+      if (token && isAuthenticated) {
+        router.replace(user?.role === "Cashier" ? "/pos" : "/dashboard");
+      }
+    };
+
+    const unsub = useAuthStore.persist.onFinishHydration(redirectIfAuthenticated);
+    if (useAuthStore.persist.hasHydrated()) redirectIfAuthenticated();
+    return unsub;
+  }, [router]);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");

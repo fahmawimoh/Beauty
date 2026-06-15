@@ -10,15 +10,18 @@ import { LogoutButton } from "./logout-button";
 import { ToastContainer } from "@/components/ui/toast-container";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
-import { performLogout } from "@/lib/auth";
+import { performLogout, useAuthHydrated } from "@/lib/auth";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
+  const hydrated = useAuthHydrated();
   const { isAuthenticated } = useAuthStore();
   const router = useRouter();
   const locale = useLocale();
+  const token = api.getToken();
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    if (!hydrated) return;
+
     const savedLocale = localStorage.getItem("BEAUTY_LOCALE");
     if (savedLocale && savedLocale !== locale) {
       document.cookie = `BEAUTY_LOCALE=${savedLocale};path=/;max-age=31536000`;
@@ -29,22 +32,14 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       router.replace("/login");
     });
 
-    if (token) {
-      api.setToken(token);
-    } else if (isAuthenticated) {
-      void performLogout();
-      router.replace("/login");
-      return;
-    }
-
-    if (!token && !isAuthenticated) {
-      router.replace("/login");
+    if (!token || !isAuthenticated) {
+      void performLogout().then(() => router.replace("/login"));
     }
 
     return () => api.setUnauthorizedHandler(null);
-  }, [isAuthenticated, router, locale]);
+  }, [hydrated, isAuthenticated, router, locale, token]);
 
-  if (!isAuthenticated) {
+  if (!hydrated || !isAuthenticated || !token) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" />

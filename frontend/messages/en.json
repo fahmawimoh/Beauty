@@ -136,7 +136,8 @@
     "productBreakdownHint": "Per-product totals for today",
     "productGrandTotal": "Product Total",
     "noProductSales": "No product sales today",
-    "quantitySold": "{count} sold"
+    "quantitySold": "{count} sold",
+    "quantitySoldHeader": "Qty Sold"
   },
   "customers": {
     "title": "Customers",
@@ -384,7 +385,28 @@
     "timesSold": "Times Sold",
     "serviceRevenue": "Total Revenue",
     "serviceGrandTotal": "Grand Total",
-    "noServiceSales": "No service sales for this period"
+    "noServiceSales": "No service sales for this period",
+    "transactionId": "Transaction ID",
+    "productId": "Product ID",
+    "serviceId": "Service ID",
+    "filters": {
+      "timeRange": "Time range",
+      "quickPeriod": "Quick period",
+      "fromDate": "From",
+      "toDate": "To",
+      "type": "Type / Category",
+      "apply": "Apply",
+      "reset": "Reset",
+      "clearAll": "Clear filters",
+      "transactionId": "ID",
+      "transactionSearch": "Transaction ID search",
+      "transactionSearchPlaceholder": "Invoice # or transaction ID (full or partial)",
+      "transactionSearchHint": "Search by invoice number or transaction ID — exact or partial match",
+      "idPlaceholder": "Full GUID",
+      "typePlaceholderTransactions": "Product, Service…",
+      "typePlaceholderProducts": "SKU or category",
+      "typePlaceholderServices": "Service category"
+    }
   },
   "pos": {
     "services": "Services",

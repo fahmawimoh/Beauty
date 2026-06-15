@@ -8,14 +8,17 @@ import { formatCurrency } from "@/lib/utils";
 import { formatDiscountDisplay, normalizeDiscountType } from "@/lib/discount";
 import {
   buildSalesQuery,
+  DEFAULT_SALES_FILTERS,
   DEFAULT_TAB_PAGINATION,
+  formatShortId,
   normalizePage,
   normalizePageSize,
   normalizeSalesPeriod,
-  SALES_PERIODS,
   SALES_TABS,
   type ProductSalesPage,
+  type SalesFilters,
   type SalesPeriod,
+  type SalesPeriodSummary,
   type SalesRow,
   type SalesSummary,
   type SalesTab,
@@ -26,6 +29,7 @@ import {
 import { useAuthStore } from "@/lib/store";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { SalesGlobalFilterBar } from "@/components/sales/sales-global-filter-bar";
 import { TablePagination } from "@/components/sales/table-pagination";
 import type { Invoice } from "@/types";
 
@@ -43,6 +47,13 @@ function createDefaultPagination(): Record<SalesTab, TabPaginationState> {
   };
 }
 
+const EMPTY_PERIOD_SUMMARY: SalesPeriodSummary = {
+  totalSales: 0,
+  totalDiscounts: 0,
+  netRevenue: 0,
+  invoiceCount: 0,
+};
+
 export default function SalesPage() {
   const t = useTranslations("sales");
   const tCommon = useTranslations("common");
@@ -51,15 +62,15 @@ export default function SalesPage() {
   const fmt = (amount: number) => formatCurrency(amount, locale);
   const { user } = useAuthStore();
 
-  const [period, setPeriod] = useState<SalesPeriod>("daily");
+  const [appliedFilters, setAppliedFilters] = useState<SalesFilters>(DEFAULT_SALES_FILTERS);
   const [activeTab, setActiveTab] = useState<SalesTab>("transactions");
   const [pagination, setPagination] = useState(createDefaultPagination);
   const [summary, setSummary] = useState<SalesSummary | null>(null);
   const [transactions, setTransactions] = useState<SalesTransactionsPage | null>(null);
   const [products, setProducts] = useState<ProductSalesPage | null>(null);
   const [services, setServices] = useState<ServiceSalesPage | null>(null);
-  const [summaryLoading, setSummaryLoading] = useState(true);
-  const [tabLoading, setTabLoading] = useState(true);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [tabLoading, setTabLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Invoice | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -70,7 +81,7 @@ export default function SalesPage() {
     setSummaryLoading(true);
     setError(null);
     try {
-      const query = buildSalesQuery(period, DEFAULT_TAB_PAGINATION, branchId);
+      const query = buildSalesQuery(appliedFilters, DEFAULT_TAB_PAGINATION, branchId);
       const data = await api.get<SalesSummary>(`/reports/sales/summary${query}`);
       setSummary(data);
     } catch (err) {
@@ -79,14 +90,14 @@ export default function SalesPage() {
     } finally {
       setSummaryLoading(false);
     }
-  }, [period, branchId, t]);
+  }, [appliedFilters, branchId, t]);
 
   const loadTabData = useCallback(async () => {
     const tabPagination = pagination[activeTab];
     setTabLoading(true);
     setError(null);
     try {
-      const query = buildSalesQuery(period, tabPagination, branchId);
+      const query = buildSalesQuery(appliedFilters, tabPagination, branchId);
       const endpoint = TAB_ENDPOINTS[activeTab];
 
       if (activeTab === "transactions") {
@@ -128,7 +139,9 @@ export default function SalesPage() {
     } finally {
       setTabLoading(false);
     }
-  }, [activeTab, period, pagination, branchId, t]);
+  }, [activeTab, appliedFilters, pagination, branchId, t]);
+
+  const isPageLoading = summaryLoading || tabLoading;
 
   useEffect(() => {
     void loadSummary();
@@ -138,8 +151,18 @@ export default function SalesPage() {
     void loadTabData();
   }, [loadTabData]);
 
-  const handlePeriodChange = (nextPeriod: SalesPeriod) => {
-    setPeriod(normalizeSalesPeriod(nextPeriod));
+  const handlePeriodSelect = (nextPeriod: SalesPeriod) => {
+    setAppliedFilters((prev) => ({
+      ...prev,
+      period: normalizeSalesPeriod(nextPeriod),
+      from: "",
+      to: "",
+    }));
+    setPagination(createDefaultPagination());
+  };
+
+  const handleResetFilters = () => {
+    setAppliedFilters(DEFAULT_SALES_FILTERS);
     setPagination(createDefaultPagination());
   };
 
@@ -173,7 +196,11 @@ export default function SalesPage() {
         { key: "daily" as const, label: tReports("periods.daily"), summary: summary.daily },
         { key: "weekly" as const, label: tReports("periods.weekly"), summary: summary.weekly },
         { key: "monthly" as const, label: tReports("periods.monthly"), summary: summary.monthly },
-      ]
+        { key: "yearly" as const, label: tReports("periods.yearly"), summary: summary.yearly },
+      ].map((entry) => ({
+        ...entry,
+        summary: entry.summary ?? EMPTY_PERIOD_SUMMARY,
+      }))
     : [];
 
   const stats = current
@@ -199,6 +226,7 @@ export default function SalesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-start text-slate-500">
+                  <th className="px-4 py-3 font-medium">{t("transactionId")}</th>
                   <th className="px-4 py-3 font-medium">{t("invoiceNumber")}</th>
                   <th className="px-4 py-3 font-medium">{t("itemType")}</th>
                   <th className="px-4 py-3 font-medium">{tCommon("date")}</th>
@@ -213,6 +241,9 @@ export default function SalesPage() {
                     onClick={() => void openSaleDetails(invoice)}
                     className="border-b border-slate-50 hover:bg-violet-50/50 cursor-pointer transition-colors"
                   >
+                    <td className="px-4 py-3 font-mono text-xs text-slate-500" title={invoice.id}>
+                      {formatShortId(invoice.id)}
+                    </td>
                     <td className="px-4 py-3 font-medium text-violet-700">{invoice.invoiceNumber}</td>
                     <td className="px-4 py-3 text-slate-600">{invoice.itemType}</td>
                     <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
@@ -252,19 +283,27 @@ export default function SalesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-start text-slate-500">
+                  <th className="px-4 py-3 font-medium">{t("productId")}</th>
                   <th className="px-4 py-3 font-medium">{tCommon("name")}</th>
                   <th className="px-4 py-3 font-medium">{t("productType")}</th>
                   <th className="px-4 py-3 font-medium">{t("productCategory")}</th>
+                  <th className="px-4 py-3 font-medium">{tCommon("date")}</th>
                   <th className="px-4 py-3 font-medium text-end">{t("quantitySold")}</th>
                   <th className="px-4 py-3 font-medium text-end">{t("productSalesAmount")}</th>
                 </tr>
               </thead>
               <tbody>
                 {products.items.map((product) => (
-                  <tr key={product.productId ?? product.productName} className="border-b border-slate-50">
+                  <tr key={product.lineItemId} className="border-b border-slate-50">
+                    <td className="px-4 py-3 font-mono text-xs text-slate-500" title={product.productId ?? undefined}>
+                      {formatShortId(product.productId)}
+                    </td>
                     <td className="px-4 py-3 font-medium text-slate-900">{product.productName}</td>
                     <td className="px-4 py-3 text-slate-600">{product.productType}</td>
                     <td className="px-4 py-3 text-slate-600">{product.productCategory}</td>
+                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                      {new Date(product.soldAt).toLocaleString(dateLocale)}
+                    </td>
                     <td className="px-4 py-3 text-end">{product.quantitySold}</td>
                     <td className="px-4 py-3 text-end font-semibold">{fmt(product.totalSalesAmount)}</td>
                   </tr>
@@ -272,7 +311,7 @@ export default function SalesPage() {
               </tbody>
               <tfoot>
                 <tr className="border-t border-slate-200 bg-slate-50 font-semibold">
-                  <td className="px-4 py-3" colSpan={3}>{t("productGrandTotal")}</td>
+                  <td className="px-4 py-3" colSpan={5}>{t("productGrandTotal")}</td>
                   <td className="px-4 py-3 text-end">{products.totalQuantitySold}</td>
                   <td className="px-4 py-3 text-end text-violet-700">{fmt(products.grandTotal)}</td>
                 </tr>
@@ -303,19 +342,27 @@ export default function SalesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-start text-slate-500">
+                <th className="px-4 py-3 font-medium">{t("serviceId")}</th>
                 <th className="px-4 py-3 font-medium">{t("serviceName")}</th>
                 <th className="px-4 py-3 font-medium">{t("serviceType")}</th>
                 <th className="px-4 py-3 font-medium">{t("serviceCategory")}</th>
+                <th className="px-4 py-3 font-medium">{tCommon("date")}</th>
                 <th className="px-4 py-3 font-medium text-end">{t("timesSold")}</th>
                 <th className="px-4 py-3 font-medium text-end">{t("serviceRevenue")}</th>
               </tr>
             </thead>
             <tbody>
               {services.items.map((service) => (
-                <tr key={service.serviceOfferingId ?? service.serviceName} className="border-b border-slate-50">
+                <tr key={service.lineItemId} className="border-b border-slate-50">
+                  <td className="px-4 py-3 font-mono text-xs text-slate-500" title={service.serviceOfferingId ?? undefined}>
+                    {formatShortId(service.serviceOfferingId)}
+                  </td>
                   <td className="px-4 py-3 font-medium text-slate-900">{service.serviceName}</td>
                   <td className="px-4 py-3 text-slate-600">{service.serviceType}</td>
                   <td className="px-4 py-3 text-slate-600">{service.serviceCategory}</td>
+                  <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                    {new Date(service.soldAt).toLocaleString(dateLocale)}
+                  </td>
                   <td className="px-4 py-3 text-end">{service.timesSold}</td>
                   <td className="px-4 py-3 text-end font-semibold">{fmt(service.totalRevenue)}</td>
                 </tr>
@@ -323,7 +370,7 @@ export default function SalesPage() {
             </tbody>
             <tfoot>
               <tr className="border-t border-slate-200 bg-slate-50 font-semibold">
-                <td className="px-4 py-3" colSpan={3}>{t("serviceGrandTotal")}</td>
+                <td className="px-4 py-3" colSpan={5}>{t("serviceGrandTotal")}</td>
                 <td className="px-4 py-3 text-end">{services.totalTimesSold}</td>
                 <td className="px-4 py-3 text-end text-violet-700">{fmt(services.grandTotal)}</td>
               </tr>
@@ -347,25 +394,17 @@ export default function SalesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{t("title")}</h1>
-          <p className="text-sm text-slate-500">{t("subtitle")}</p>
-        </div>
-        <div className="flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-white p-1">
-          {SALES_PERIODS.map((p) => (
-            <button
-              key={p}
-              onClick={() => handlePeriodChange(p)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                period === p ? "bg-violet-600 text-white" : "text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              {tReports(`periods.${p}`)}
-            </button>
-          ))}
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
+        <p className="text-sm text-slate-500">{t("subtitle")}</p>
       </div>
+
+      <SalesGlobalFilterBar
+        applied={appliedFilters}
+        onPeriodSelect={handlePeriodSelect}
+        onReset={handleResetFilters}
+        loading={isPageLoading}
+      />
 
       {error && (
         <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -386,7 +425,12 @@ export default function SalesPage() {
       {summaryLoading && !summary ? (
         <p className="text-center text-sm text-slate-400 py-8">{tCommon("loading")}</p>
       ) : summary ? (
-        <>
+        <div className="relative space-y-6">
+          {summaryLoading && (
+            <div className="absolute inset-0 z-10 flex items-start justify-center pt-16 bg-white/50 rounded-lg">
+              <p className="text-sm text-slate-500">{tCommon("loading")}</p>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {stats.map((s) => (
               <Card key={s.label}>
@@ -413,12 +457,14 @@ export default function SalesPage() {
               <h2 className="font-semibold text-slate-900">{t("periodComparison")}</h2>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {periodSummaries.map(({ key, label, summary: periodSummary }) => (
                   <div
                     key={key}
                     className={`rounded-lg border p-4 ${
-                      period === key ? "border-violet-300 bg-violet-50" : "border-slate-100 bg-slate-50"
+                      appliedFilters.period === key && !appliedFilters.from && !appliedFilters.to
+                        ? "border-violet-300 bg-violet-50"
+                        : "border-slate-100 bg-slate-50"
                     }`}
                   >
                     <p className="text-sm font-medium text-slate-600">{label}</p>
@@ -437,7 +483,7 @@ export default function SalesPage() {
               </div>
             </CardContent>
           </Card>
-        </>
+        </div>
       ) : null}
 
       <Card>

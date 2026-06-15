@@ -9,7 +9,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
-import { usePhoneValidation, formatPhoneDisplay } from "@/lib/phone";
+import { usePhoneValidation, formatPhoneDisplay, sanitizePhoneInput } from "@/lib/phone";
 import { useApiError } from "@/lib/errors";
 import type { Customer } from "@/types";
 
@@ -77,7 +77,7 @@ export default function CustomersPage() {
     try {
       const payload = {
         name: form.name.trim(),
-        phone: form.phone,
+        phone: sanitizePhoneInput(form.phone),
         email: form.email.trim() || null,
         notes: form.notes.trim() || null,
       };

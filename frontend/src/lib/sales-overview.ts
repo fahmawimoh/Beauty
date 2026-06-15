@@ -1,4 +1,4 @@
-export const SALES_PERIODS = ["daily", "weekly", "monthly"] as const;
+export const SALES_PERIODS = ["daily", "weekly", "monthly", "yearly"] as const;
 export const SALES_PAGE_SIZE = 10;
 export const SALES_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
 export const SALES_TABS = ["transactions", "products", "services"] as const;
@@ -27,7 +27,7 @@ export interface SalesRow {
   createdAt: string;
 }
 
-export interface ProductSalesRow {
+export interface ProductSalesAggregateRow {
   productId?: string | null;
   productName: string;
   productType: string;
@@ -36,14 +36,45 @@ export interface ProductSalesRow {
   totalSalesAmount: number;
 }
 
+export interface ProductSalesRow {
+  lineItemId: string;
+  productId?: string | null;
+  productName: string;
+  productType: string;
+  productCategory: string;
+  soldAt: string;
+  quantitySold: number;
+  totalSalesAmount: number;
+}
+
 export interface ServiceSalesRow {
+  lineItemId: string;
   serviceOfferingId?: string | null;
   serviceName: string;
   serviceType: string;
   serviceCategory: string;
+  soldAt: string;
   timesSold: number;
   totalRevenue: number;
 }
+
+export interface SalesFilters {
+  period: SalesPeriod;
+  from: string;
+  to: string;
+  type: string;
+  entityId: string;
+  transactionSearch: string;
+}
+
+export const DEFAULT_SALES_FILTERS: SalesFilters = {
+  period: "daily",
+  from: "",
+  to: "",
+  type: "",
+  entityId: "",
+  transactionSearch: "",
+};
 
 export interface PaginatedResponse<T> {
   items: T[];
@@ -61,6 +92,7 @@ export interface SalesSummary {
   daily: SalesPeriodSummary;
   weekly: SalesPeriodSummary;
   monthly: SalesPeriodSummary;
+  yearly: SalesPeriodSummary;
 }
 
 export interface SalesTransactionsPage extends PaginatedResponse<SalesRow> {
@@ -87,6 +119,18 @@ export const DEFAULT_TAB_PAGINATION: TabPaginationState = {
   page: 1,
   pageSize: SALES_PAGE_SIZE,
 };
+
+const GUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isValidGuid(value: string): boolean {
+  return GUID_PATTERN.test(value.trim());
+}
+
+export function formatShortId(id: string | null | undefined): string {
+  if (!id) return "—";
+  return id.slice(0, 8).toUpperCase();
+}
 
 export function isValidSalesPeriod(value: string): value is SalesPeriod {
   return (SALES_PERIODS as readonly string[]).includes(value.toLowerCase());
@@ -128,15 +172,39 @@ export function normalizePage(page: number, totalPages: number): number {
 }
 
 export function buildSalesQuery(
-  period: SalesPeriod,
+  filters: SalesFilters,
   pagination: TabPaginationState,
   branchId?: string
 ): string {
   const params = new URLSearchParams({
-    period,
+    period: filters.period,
     page: String(pagination.page),
     pageSize: String(pagination.pageSize),
   });
   if (branchId) params.set("branchId", branchId);
+  if (filters.from) params.set("from", filters.from);
+  if (filters.to) params.set("to", filters.to);
+  if (filters.type.trim()) params.set("type", filters.type.trim());
+  if (filters.entityId.trim() && isValidGuid(filters.entityId)) {
+    params.set("id", filters.entityId.trim());
+  }
+  if (filters.transactionSearch.trim()) {
+    params.set("transactionId", filters.transactionSearch.trim());
+  }
   return `?${params.toString()}`;
+}
+
+export function matchesTransactionSearch(
+  invoiceId: string,
+  invoiceNumber: string,
+  search: string
+): boolean {
+  if (!search.trim()) return true;
+  const term = search.trim();
+  if (isValidGuid(term)) return invoiceId.toLowerCase() === term.toLowerCase();
+  const lower = term.toLowerCase();
+  return (
+    invoiceNumber.toLowerCase().includes(lower) ||
+    invoiceId.toLowerCase().includes(lower)
+  );
 }

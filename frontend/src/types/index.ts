@@ -1,3 +1,5 @@
+import type { ProductSalesAggregateRow } from "@/lib/sales-overview";
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T | null;
@@ -44,7 +46,7 @@ export interface DashboardSummary {
   last7DaysSales: { date: string; revenue: number; invoiceCount: number; customerCount: number }[];
   productSalesGrandTotal: number;
   productQuantitySold: number;
-  topProductSales: ProductSalesRow[];
+  topProductSales: ProductSalesAggregateRow[];
 }
 
 export interface Customer {

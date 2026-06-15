@@ -162,7 +162,7 @@ export default function DashboardPage() {
                   <thead>
                     <tr className="border-b border-slate-100 text-start text-slate-500">
                       <th className="px-4 py-3 font-medium">{tCommon("name")}</th>
-                      <th className="px-4 py-3 font-medium text-end">{t("quantitySold")}</th>
+                      <th className="px-4 py-3 font-medium text-end">{t("quantitySoldHeader")}</th>
                       <th className="px-4 py-3 font-medium text-end">{tCommon("total")}</th>
                     </tr>
                   </thead>
