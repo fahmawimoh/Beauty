@@ -27,6 +27,12 @@ public class ReportsController : ControllerBase
     public async Task<ActionResult<ApiResponse<PeriodReportDto>>> GetPeriodReport(string period, [FromQuery] Guid? branchId, CancellationToken ct)
         => Ok(ApiResponse<PeriodReportDto>.Ok(await _reportService.GetPeriodReportAsync(period, branchId, ct)));
 
+    [HttpGet("sales")]
+    [RoleAuthorize(UserRole.Admin, UserRole.Manager, UserRole.Cashier)]
+    public async Task<ActionResult<ApiResponse<SalesOverviewDto>>> GetSalesOverview(
+        [FromQuery] string period = "daily", [FromQuery] Guid? branchId = null, CancellationToken ct = default)
+        => Ok(ApiResponse<SalesOverviewDto>.Ok(await _reportService.GetSalesOverviewAsync(period, branchId, ct)));
+
     [HttpGet("expenses")]
     [RoleAuthorize(UserRole.Admin, UserRole.Manager)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<ExpenseDto>>>> GetExpenses(

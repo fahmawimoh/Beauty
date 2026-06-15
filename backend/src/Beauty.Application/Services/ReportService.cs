@@ -1,5 +1,6 @@
 using Beauty.Application.DTOs.Reports;
 using Beauty.Application.Interfaces;
+using Beauty.Application.Common;
 using Beauty.Domain.Entities;
 using Beauty.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -137,18 +138,60 @@ public class ReportService : IReportService
         return new ExpenseDto(expense.Id, expense.BranchId, expense.Category, expense.Description, expense.Amount, expense.ExpenseDate);
     }
 
+    public async Task<SalesOverviewDto> GetSalesOverviewAsync(string period, Guid? branchId = null, CancellationToken cancellationToken = default)
+    {
+        const int maxRows = 500;
+        var normalizedPeriod = PeriodRangeHelper.NormalizeSalesPeriod(period);
+        var tenantId = RequireTenantId();
+
+        var invoiceQuery = _context.Invoices
+            .Where(i => i.TenantId == tenantId && i.Status == InvoiceStatus.Completed);
+        if (branchId.HasValue) invoiceQuery = invoiceQuery.Where(i => i.BranchId == branchId);
+
+        async Task<SalesPeriodSummaryDto> GetSummaryForPeriodAsync(string p)
+        {
+            var (start, end) = PeriodRangeHelper.GetRange(p);
+            var totals = await invoiceQuery
+                .Where(i => i.CreatedAt >= start && i.CreatedAt <= end)
+                .Select(i => new InvoiceTotals(i.SubTotal, i.DiscountAmount, i.TotalAmount))
+                .ToListAsync(cancellationToken);
+            return SalesSummaryCalculator.Calculate(totals);
+        }
+
+        var daily = await GetSummaryForPeriodAsync("daily");
+        var weekly = await GetSummaryForPeriodAsync("weekly");
+        var monthly = await GetSummaryForPeriodAsync("monthly");
+
+        var (tableStart, tableEnd) = PeriodRangeHelper.GetRange(normalizedPeriod);
+        var tableQuery = invoiceQuery.Where(i => i.CreatedAt >= tableStart && i.CreatedAt <= tableEnd);
+        var totalSalesCount = await tableQuery.CountAsync(cancellationToken);
+
+        var sales = await tableQuery
+            .OrderByDescending(i => i.CreatedAt)
+            .Take(maxRows)
+            .Select(i => new SalesRowDto(
+                i.Id,
+                i.InvoiceNumber,
+                i.Customer != null ? i.Customer.Name : null,
+                i.Cashier.FullName,
+                i.SubTotal,
+                i.DiscountAmount,
+                i.TotalAmount,
+                i.CreatedAt))
+            .ToListAsync(cancellationToken);
+
+        var current = normalizedPeriod switch
+        {
+            "weekly" => weekly,
+            "monthly" => monthly,
+            _ => daily
+        };
+
+        return new SalesOverviewDto(
+            normalizedPeriod, tableStart, tableEnd, current, daily, weekly, monthly, sales, totalSalesCount);
+    }
+
     private Guid RequireTenantId() => _currentUser.TenantId ?? throw new UnauthorizedAccessException();
 
-    private static (DateTime start, DateTime end) GetPeriodRange(string period)
-    {
-        var today = DateTime.UtcNow.Date;
-        return period.ToLower() switch
-        {
-            "daily" => (today, today.AddDays(1).AddTicks(-1)),
-            "weekly" => (today.AddDays(-(int)today.DayOfWeek), today.AddDays(1).AddTicks(-1)),
-            "monthly" => (new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc), today.AddDays(1).AddTicks(-1)),
-            "yearly" => (new DateTime(today.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc), today.AddDays(1).AddTicks(-1)),
-            _ => (today, today.AddDays(1).AddTicks(-1))
-        };
-    }
+    private static (DateTime start, DateTime end) GetPeriodRange(string period) => PeriodRangeHelper.GetRange(period);
 }

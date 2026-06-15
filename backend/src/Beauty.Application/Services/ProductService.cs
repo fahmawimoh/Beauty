@@ -1,3 +1,4 @@
+using Beauty.Application.Common;
 using Beauty.Application.DTOs.Common;
 using Beauty.Application.DTOs.Products;
 using Beauty.Application.Interfaces;
@@ -61,13 +62,20 @@ public class ProductService : IProductService
 
     public async Task<ProductDto> CreateAsync(CreateProductRequest request, CancellationToken cancellationToken = default)
     {
+        var tenantId = RequireTenantId();
+        var sku = request.Sku.Trim();
+        var name = request.Name.Trim();
+
+        ProductValidation.ValidateFields(sku, name, request.Price, request.CostPrice, request.StockQuantity, request.LowStockThreshold);
+        await EnsureSkuUniqueAsync(tenantId, request.BranchId, sku, null, cancellationToken);
+
         var product = new Product
         {
-            TenantId = RequireTenantId(),
+            TenantId = tenantId,
             BranchId = request.BranchId,
-            Sku = request.Sku,
-            Name = request.Name,
-            Description = request.Description,
+            Sku = sku,
+            Name = name,
+            Description = request.Description?.Trim(),
             Price = request.Price,
             CostPrice = request.CostPrice,
             StockQuantity = request.StockQuantity,
@@ -83,21 +91,50 @@ public class ProductService : IProductService
 
     public async Task<ProductDto?> UpdateAsync(Guid id, UpdateProductRequest request, CancellationToken cancellationToken = default)
     {
+        var tenantId = RequireTenantId();
         var product = await _context.Products
-            .FirstOrDefaultAsync(p => p.Id == id && p.TenantId == RequireTenantId(), cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId, cancellationToken);
         if (product is null) return null;
 
-        product.Sku = request.Sku;
-        product.Name = request.Name;
-        product.Description = request.Description;
+        var sku = request.Sku.Trim();
+        var name = request.Name.Trim();
+
+        ProductValidation.ValidateFields(sku, name, request.Price, request.CostPrice, request.StockQuantity, request.LowStockThreshold);
+        await EnsureSkuUniqueAsync(tenantId, product.BranchId, sku, id, cancellationToken);
+
+        var previousStock = product.StockQuantity;
+        product.Sku = sku;
+        product.Name = name;
+        product.Description = request.Description?.Trim();
         product.Price = request.Price;
         product.CostPrice = request.CostPrice;
+        product.StockQuantity = request.StockQuantity;
         product.LowStockThreshold = request.LowStockThreshold;
         product.IsActive = request.IsActive;
         product.UpdatedAt = DateTime.UtcNow;
 
+        var stockChange = request.StockQuantity - previousStock;
+        if (stockChange != 0)
+            await LogStockChangeAsync(product, stockChange, "Manual update", cancellationToken);
+
         await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync("Update", "Product", product.Id, product.Name, cancellationToken);
+
         return ToDto(product);
+    }
+
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var product = await _context.Products
+            .FirstOrDefaultAsync(p => p.Id == id && p.TenantId == RequireTenantId() && p.IsActive, cancellationToken);
+        if (product is null) return false;
+
+        product.IsActive = false;
+        product.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync("Delete", "Product", product.Id, product.Name, cancellationToken);
+
+        return true;
     }
 
     public async Task<bool> AdjustStockAsync(Guid id, AdjustStockRequest request, CancellationToken cancellationToken = default)
@@ -109,24 +146,46 @@ public class ProductService : IProductService
         product.StockQuantity += request.QuantityChange;
         product.UpdatedAt = DateTime.UtcNow;
 
-        var branchId = product.BranchId ?? _currentUser.BranchId ?? Guid.Empty;
-        if (branchId != Guid.Empty)
-        {
-            _context.InventoryLogs.Add(new InventoryLog
-            {
-                TenantId = product.TenantId,
-                BranchId = branchId,
-                ProductId = product.Id,
-                ChangeType = InventoryChangeType.Adjustment,
-                QuantityChange = request.QuantityChange,
-                QuantityAfter = product.StockQuantity,
-                Reference = request.Reference,
-                CreatedByUserId = _currentUser.UserId
-            });
-        }
-
+        await LogStockChangeAsync(product, request.QuantityChange, request.Reference, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    private async Task EnsureSkuUniqueAsync(Guid tenantId, Guid? branchId, string sku, Guid? excludeId, CancellationToken cancellationToken)
+    {
+        var query = _context.Products
+            .Where(p => p.TenantId == tenantId && p.IsActive && p.Sku.ToLower() == sku.ToLower());
+
+        if (branchId.HasValue)
+            query = query.Where(p => p.BranchId == branchId);
+        else
+            query = query.Where(p => p.BranchId == null);
+
+        if (excludeId.HasValue)
+            query = query.Where(p => p.Id != excludeId);
+
+        if (await query.AnyAsync(cancellationToken))
+            throw new InvalidOperationException(ProductValidation.DuplicateSkuMessage);
+    }
+
+    private async Task LogStockChangeAsync(Product product, int quantityChange, string? reference, CancellationToken cancellationToken)
+    {
+        var branchId = product.BranchId ?? _currentUser.BranchId ?? Guid.Empty;
+        if (branchId == Guid.Empty) return;
+
+        _context.InventoryLogs.Add(new InventoryLog
+        {
+            TenantId = product.TenantId,
+            BranchId = branchId,
+            ProductId = product.Id,
+            ChangeType = InventoryChangeType.Adjustment,
+            QuantityChange = quantityChange,
+            QuantityAfter = product.StockQuantity,
+            Reference = reference,
+            CreatedByUserId = _currentUser.UserId
+        });
+
+        await Task.CompletedTask;
     }
 
     private Guid RequireTenantId() => _currentUser.TenantId ?? throw new UnauthorizedAccessException();

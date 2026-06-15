@@ -5,4 +5,7 @@
     <Project Path="src/Beauty.Domain/Beauty.Domain.csproj" />
     <Project Path="src/Beauty.Infrastructure/Beauty.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Beauty.Application.Tests/Beauty.Application.Tests.csproj" />
+  </Folder>
 </Solution>

@@ -31,6 +31,7 @@ public record UpdateProductRequest(
     string? Description,
     decimal Price,
     decimal CostPrice,
+    int StockQuantity,
     int LowStockThreshold,
     bool IsActive
 );

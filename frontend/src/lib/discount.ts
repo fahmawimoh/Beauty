@@ -63,6 +63,14 @@ export function validateDiscountValue(
   return null;
 }
 
+export function isDiscountValid(
+  discountType: DiscountType,
+  discountValue: number,
+  subtotal: number
+): boolean {
+  return validateDiscountValue(discountType, discountValue, subtotal) === null;
+}
+
 export function formatDiscountLabel(
   discountType: DiscountType,
   t: (key: string) => string
@@ -77,7 +85,7 @@ export function formatDiscountDisplay(
   fmt: (amount: number) => string
 ): string {
   if (discountAmount <= 0) return fmt(0);
-  if (discountType === "PERCENTAGE") {
+  if (discountType === "PERCENTAGE" && discountValue > 0) {
     return `${discountValue}% (-${fmt(discountAmount)})`;
   }
   return `-${fmt(discountAmount)}`;

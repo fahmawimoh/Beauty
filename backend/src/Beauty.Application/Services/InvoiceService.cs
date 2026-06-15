@@ -1,6 +1,8 @@
+using Beauty.Application.Common;
 using Beauty.Application.DTOs.Common;
 using Beauty.Application.DTOs.Invoices;
 using Beauty.Application.Interfaces;
+using Beauty.Application.Services;
 using Beauty.Domain.Entities;
 using Beauty.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -12,12 +14,18 @@ public class InvoiceService : IInvoiceService
     private readonly IAppDbContext _context;
     private readonly ICurrentUserService _currentUser;
     private readonly IAuditService _auditService;
+    private readonly IDiscountCalculationService _discountService;
 
-    public InvoiceService(IAppDbContext context, ICurrentUserService currentUser, IAuditService auditService)
+    public InvoiceService(
+        IAppDbContext context,
+        ICurrentUserService currentUser,
+        IAuditService auditService,
+        IDiscountCalculationService discountService)
     {
         _context = context;
         _currentUser = currentUser;
         _auditService = auditService;
+        _discountService = discountService;
     }
 
     public async Task<PagedResult<InvoiceDto>> GetAllAsync(Guid? branchId = null, DateTime? from = null, DateTime? to = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
@@ -64,13 +72,18 @@ public class InvoiceService : IInvoiceService
         if (items.Count == 0)
             throw new InvalidOperationException("Invoice must have at least one item.");
 
+        var discountType = await _discountService.GetDiscountTypeAsync(tenantId, cancellationToken);
+
         var invoiceNumber = await GenerateInvoiceNumberAsync(tenantId, cancellationToken);
         var invoiceItems = new List<InvoiceItem>();
         decimal subTotal = 0;
 
         foreach (var item in items)
         {
-            var lineTotal = (item.UnitPrice * item.Quantity) - item.DiscountAmount;
+            var lineSubtotal = item.UnitPrice * item.Quantity;
+            _discountService.ValidateDiscountValue(discountType, item.DiscountValue, lineSubtotal, "Item discount");
+            var lineDiscountAmount = _discountService.CalculateLineDiscount(discountType, lineSubtotal, item.DiscountValue);
+            var lineTotal = lineSubtotal - lineDiscountAmount;
             subTotal += lineTotal;
 
             invoiceItems.Add(new InvoiceItem
@@ -82,7 +95,8 @@ public class InvoiceService : IInvoiceService
                 Name = item.Name,
                 Quantity = item.Quantity,
                 UnitPrice = item.UnitPrice,
-                DiscountAmount = item.DiscountAmount,
+                DiscountValue = item.DiscountValue,
+                DiscountAmount = lineDiscountAmount,
                 LineTotal = lineTotal
             });
 
@@ -108,7 +122,9 @@ public class InvoiceService : IInvoiceService
             }
         }
 
-        var totalAmount = subTotal - request.DiscountAmount + request.TaxAmount;
+        _discountService.ValidateDiscountValue(discountType, request.DiscountValue, subTotal, "Invoice discount");
+        var invoiceDiscountAmount = _discountService.CalculateInvoiceDiscount(discountType, subTotal, request.DiscountValue);
+        var totalAmount = Math.Max(0, subTotal - invoiceDiscountAmount + request.TaxAmount);
 
         var invoice = new Invoice
         {
@@ -118,7 +134,9 @@ public class InvoiceService : IInvoiceService
             CustomerId = request.CustomerId,
             CashierId = userId,
             SubTotal = subTotal,
-            DiscountAmount = request.DiscountAmount,
+            DiscountType = discountType,
+            DiscountValue = request.DiscountValue,
+            DiscountAmount = invoiceDiscountAmount,
             TaxAmount = request.TaxAmount,
             TotalAmount = totalAmount,
             Status = InvoiceStatus.Completed,
@@ -164,6 +182,8 @@ public class InvoiceService : IInvoiceService
             invoice.PaidAt ?? invoice.CreatedAt,
             invoice.Items.Select(i => new ReceiptItemDto(i.Name, i.Quantity, i.UnitPrice, i.LineTotal)).ToList(),
             invoice.SubTotal,
+            DiscountTypeMapper.ToApiValue(invoice.DiscountType),
+            invoice.DiscountValue,
             invoice.DiscountAmount,
             invoice.TaxAmount,
             invoice.TotalAmount);
@@ -181,8 +201,11 @@ public class InvoiceService : IInvoiceService
 
     private static InvoiceDto ToDto(Invoice i) => new(
         i.Id, i.InvoiceNumber, i.BranchId, i.Branch.Name, i.CustomerId, i.Customer?.Name,
-        i.CashierId, i.Cashier.FullName, i.SubTotal, i.DiscountAmount, i.TaxAmount, i.TotalAmount,
+        i.CashierId, i.Cashier.FullName, i.SubTotal,
+        DiscountTypeMapper.ToApiValue(i.DiscountType), i.DiscountValue, i.DiscountAmount,
+        i.TaxAmount, i.TotalAmount,
         i.Status, i.CreatedAt, i.PaidAt,
         i.Items.Select(ii => new InvoiceItemDto(ii.Id, ii.ItemType, ii.ServiceOfferingId, ii.ProductId,
-            ii.EmployeeId, ii.Employee?.FullName, ii.Name, ii.Quantity, ii.UnitPrice, ii.DiscountAmount, ii.LineTotal)).ToList());
+            ii.EmployeeId, ii.Employee?.FullName, ii.Name, ii.Quantity, ii.UnitPrice,
+            ii.DiscountValue, ii.DiscountAmount, ii.LineTotal)).ToList());
 }

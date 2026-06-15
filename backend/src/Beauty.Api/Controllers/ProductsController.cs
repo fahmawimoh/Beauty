@@ -36,15 +36,38 @@ public class ProductsController : ControllerBase
     [HttpPost]
     [RoleAuthorize(UserRole.Admin, UserRole.Manager)]
     public async Task<ActionResult<ApiResponse<ProductDto>>> Create([FromBody] CreateProductRequest request, CancellationToken ct)
-        => Ok(ApiResponse<ProductDto>.Ok(await _productService.CreateAsync(request, ct)));
+    {
+        try
+        {
+            return Ok(ApiResponse<ProductDto>.Ok(await _productService.CreateAsync(request, ct)));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<ProductDto>.Fail(ex.Message));
+        }
+    }
 
     [HttpPut("{id:guid}")]
     [RoleAuthorize(UserRole.Admin, UserRole.Manager)]
     public async Task<ActionResult<ApiResponse<ProductDto>>> Update(Guid id, [FromBody] UpdateProductRequest request, CancellationToken ct)
     {
-        var product = await _productService.UpdateAsync(id, request, ct);
-        return product is null ? NotFound(ApiResponse<ProductDto>.Fail("Product not found")) : Ok(ApiResponse<ProductDto>.Ok(product));
+        try
+        {
+            var product = await _productService.UpdateAsync(id, request, ct);
+            return product is null ? NotFound(ApiResponse<ProductDto>.Fail("Product not found")) : Ok(ApiResponse<ProductDto>.Ok(product));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<ProductDto>.Fail(ex.Message));
+        }
     }
+
+    [HttpDelete("{id:guid}")]
+    [RoleAuthorize(UserRole.Admin, UserRole.Manager)]
+    public async Task<ActionResult<ApiResponse<bool>>> Delete(Guid id, CancellationToken ct)
+        => await _productService.DeleteAsync(id, ct)
+            ? Ok(ApiResponse<bool>.Ok(true))
+            : NotFound(ApiResponse<bool>.Fail("Product not found"));
 
     [HttpPost("{id:guid}/adjust-stock")]
     [RoleAuthorize(UserRole.Admin, UserRole.Manager)]

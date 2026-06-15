@@ -4,7 +4,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import {
   LayoutDashboard, ShoppingCart, Users, Package, Scissors,
-  Building2, BarChart3, UserCog, Sparkles, Settings,
+  Building2, BarChart3, UserCog, Sparkles, Settings, Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store";
@@ -13,6 +13,7 @@ import { LogoutButton } from "./logout-button";
 const navKeys = [
   { href: "/dashboard", key: "dashboard", icon: LayoutDashboard, roles: ["Admin", "Manager"] },
   { href: "/pos", key: "pos", icon: ShoppingCart, roles: ["Admin", "Manager", "Cashier"] },
+  { href: "/dashboard/sales", key: "sales", icon: Receipt, roles: ["Admin", "Manager", "Cashier"] },
   { href: "/dashboard/customers", key: "customers", icon: Users, roles: ["Admin", "Manager", "Cashier"] },
   { href: "/dashboard/services", key: "services", icon: Scissors, roles: ["Admin", "Manager", "Cashier"] },
   { href: "/dashboard/products", key: "products", icon: Package, roles: ["Admin", "Manager", "Cashier"] },

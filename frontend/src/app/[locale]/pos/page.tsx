@@ -2,13 +2,17 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { Search, Plus, Minus, Trash2, User, Scissors, Package, CreditCard, Printer } from "lucide-react";
+import { Search, Plus, Minus, Trash2, User, Scissors, Package, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DiscountFieldLabel, DiscountInput } from "@/components/ui/discount-input";
+import { SaleConfirmDialog } from "@/components/pos/sale-confirm-dialog";
+import { SaleSuccessDialog } from "@/components/pos/sale-success-dialog";
 import { api } from "@/lib/api";
 import { useAuthStore, usePosStore } from "@/lib/store";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useApiError } from "@/lib/errors";
+import { isDiscountValid, normalizeDiscountType, formatDiscountDisplay } from "@/lib/discount";
 import type { Customer, ServiceCategory, ServiceOffering, Product, Receipt } from "@/types";
 
 type Tab = "services" | "products";
@@ -21,7 +25,7 @@ export default function PosPage() {
   const fmt = (amount: number) => formatCurrency(amount, locale);
   const getError = useApiError();
   const { user } = useAuthStore();
-  const { cart, selectedCustomer, discount, addToCart, removeFromCart, updateQuantity, setCustomer, setDiscount, clearCart, subtotal, total } = usePosStore();
+  const { cart, selectedCustomer, discountType, discountValue, addToCart, removeFromCart, updateQuantity, setCustomer, setDiscountType, setDiscountValue, clearCart, subtotal, discountAmount, total } = usePosStore();
 
   const [tab, setTab] = useState<Tab>("services");
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
@@ -33,6 +37,7 @@ export default function PosPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [newCustomerName, setNewCustomerName] = useState("");
 
@@ -41,7 +46,8 @@ export default function PosPage() {
     api.get<ServiceOffering[]>("/services/offerings").then(setServices).catch(console.error);
     const branchParam = user?.branchId ? `?branchId=${user.branchId}` : "";
     api.get<{ items: Product[] }>(`/products${branchParam}&pageSize=100`).then((r) => setProducts(r.items)).catch(console.error);
-  }, [user?.branchId]);
+    api.get<{ discountType: string }>("/settings").then((s) => setDiscountType(normalizeDiscountType(s.discountType))).catch(console.error);
+  }, [user?.branchId, setDiscountType]);
 
   const filteredServices = services.filter((s) => {
     const matchCat = !selectedCategory || s.categories.some((c) => c.id === selectedCategory);
@@ -61,12 +67,13 @@ export default function PosPage() {
 
   const handleCheckout = async () => {
     if (!user?.branchId || cart.length === 0) return;
+    if (!isDiscountValid(discountType, discountValue, subtotal())) return;
     setProcessing(true);
     try {
       const invoice = await api.post<{ id: string }>("/invoices", {
         branchId: user.branchId,
         customerId: selectedCustomer?.id || null,
-        discountAmount: discount,
+        discountValue,
         taxAmount: 0,
         items: cart.map((item) => ({
           itemType: item.itemType === "Service" ? 1 : 2,
@@ -76,10 +83,11 @@ export default function PosPage() {
           name: item.name,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
-          discountAmount: item.discountAmount,
+          discountValue: item.discountValue,
         })),
       });
       const receiptData = await api.get<Receipt>(`/invoices/${invoice.id}/receipt`);
+      setShowConfirm(false);
       setReceipt(receiptData);
       clearCart();
     } catch (err) {
@@ -87,6 +95,11 @@ export default function PosPage() {
     } finally {
       setProcessing(false);
     }
+  };
+
+  const openConfirmDialog = () => {
+    if (cart.length === 0 || !discountIsValid) return;
+    setShowConfirm(true);
   };
 
   const quickAddCustomer = async () => {
@@ -115,12 +128,17 @@ export default function PosPage() {
       <table>${receipt.items.map((i) => `<tr><td>${i.name} x${i.quantity}</td><td>${fmt(i.lineTotal)}</td></tr>`).join("")}</table>
       <div class="line"></div>
       <table><tr><td>${tCommon("subtotal")}</td><td>${fmt(receipt.subTotal)}</td></tr>
-      ${receipt.discountAmount > 0 ? `<tr><td>${tCommon("discount")}</td><td>-${fmt(receipt.discountAmount)}</td></tr>` : ""}
+      ${receipt.discountAmount > 0 ? `<tr><td>${tCommon("discount")}${receipt.discountType === "PERCENTAGE" ? ` (${receipt.discountValue}%)` : ""}</td><td>-${fmt(receipt.discountAmount)}</td></tr>` : ""}
       <tr><td><b>${tCommon("total")}</b></td><td><b>${fmt(receipt.total)}</b></td></tr></table>
       <div class="line"></div><div class="center">${tCommon("thankYou")}</div></body></html>`);
     win.document.close();
     win.print();
   };
+
+  const cartSubtotal = subtotal();
+  const appliedDiscount = discountAmount();
+  const cartTotal = total();
+  const discountIsValid = isDiscountValid(discountType, discountValue, cartSubtotal);
 
   return (
     <div className="flex h-[calc(100vh-3.5rem-3rem)] gap-4 -m-6 p-4">
@@ -234,40 +252,58 @@ export default function PosPage() {
         <div className="border-t border-slate-100 p-3 space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-slate-500">{tCommon("subtotal")}</span>
-            <span>{fmt(subtotal())}</span>
+            <span>{fmt(cartSubtotal)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-500 shrink-0">{tCommon("discount")}</span>
-            <Input type="number" min="0" step="0.01" value={discount || ""} onChange={(e) => setDiscount(Number(e.target.value) || 0)} className="text-end" placeholder="0.00" />
+            <DiscountFieldLabel discountType={discountType} />
+            <DiscountInput
+              discountType={discountType}
+              value={discountValue}
+              subtotal={cartSubtotal}
+              onChange={setDiscountValue}
+            />
           </div>
+          {appliedDiscount > 0 && (
+            <div className="flex items-center justify-between text-sm text-emerald-600">
+              <span>{tCommon("discount")}</span>
+              <span>{formatDiscountDisplay(discountType, discountValue, appliedDiscount, fmt)}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between font-bold text-lg pt-1">
             <span>{tCommon("total")}</span>
-            <span className="text-violet-600">{fmt(total())}</span>
+            <span className="text-violet-600">{fmt(cartTotal)}</span>
           </div>
-          <Button className="w-full" size="lg" onClick={handleCheckout} disabled={cart.length === 0 || processing}>
+          <Button className="w-full" size="lg" onClick={openConfirmDialog} disabled={cart.length === 0 || processing || !discountIsValid}>
             <CreditCard className="h-4 w-4" />
-            {processing ? t("processing") : t("completeSale")}
+            {t("completeSale")}
           </Button>
         </div>
       </div>
 
+      <SaleConfirmDialog
+        open={showConfirm}
+        onClose={() => !processing && setShowConfirm(false)}
+        onConfirm={handleCheckout}
+        cart={cart}
+        customer={selectedCustomer}
+        discountType={discountType}
+        discountValue={discountValue}
+        onDiscountChange={setDiscountValue}
+        subtotal={cartSubtotal}
+        discountAmount={appliedDiscount}
+        total={cartTotal}
+        fmt={fmt}
+        loading={processing}
+        discountValid={discountIsValid}
+      />
+
       {receipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <div className="text-center mb-4">
-              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
-                <CreditCard className="h-6 w-6 text-emerald-600" />
-              </div>
-              <h3 className="text-lg font-bold">{t("saleComplete")}</h3>
-              <p className="text-sm text-slate-500">{receipt.invoiceNumber}</p>
-            </div>
-            <p className="text-center text-3xl font-bold text-violet-600 mb-4">{fmt(receipt.total)}</p>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={printReceipt}><Printer className="h-4 w-4" /> {tCommon("print")}</Button>
-              <Button className="flex-1" onClick={() => setReceipt(null)}>{tCommon("done")}</Button>
-            </div>
-          </div>
-        </div>
+        <SaleSuccessDialog
+          receipt={receipt}
+          fmt={fmt}
+          onClose={() => setReceipt(null)}
+          onPrint={printReceipt}
+        />
       )}
     </div>
   );

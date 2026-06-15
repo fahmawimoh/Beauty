@@ -34,3 +34,33 @@ public record EmployeeSalesDto(Guid EmployeeId, string EmployeeName, decimal Rev
 
 public record ExpenseDto(Guid Id, Guid BranchId, string Category, string Description, decimal Amount, DateTime ExpenseDate);
 public record CreateExpenseRequest(Guid BranchId, string Category, string Description, decimal Amount, DateTime ExpenseDate);
+
+public record SalesPeriodSummaryDto(
+    decimal TotalSales,
+    decimal TotalDiscounts,
+    decimal NetRevenue,
+    int InvoiceCount
+);
+
+public record SalesRowDto(
+    Guid Id,
+    string InvoiceNumber,
+    string? CustomerName,
+    string CashierName,
+    decimal SubTotal,
+    decimal DiscountAmount,
+    decimal TotalAmount,
+    DateTime CreatedAt
+);
+
+public record SalesOverviewDto(
+    string Period,
+    DateTime StartDate,
+    DateTime EndDate,
+    SalesPeriodSummaryDto Current,
+    SalesPeriodSummaryDto Daily,
+    SalesPeriodSummaryDto Weekly,
+    SalesPeriodSummaryDto Monthly,
+    IReadOnlyList<SalesRowDto> Sales,
+    int TotalSalesCount
+);

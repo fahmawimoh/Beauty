@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { BranchOption, CartItem, Customer, LoginResponse } from "@/types";
+import { calculateDiscountAmount, type DiscountType } from "./discount";
 import { api } from "./api";
 import { performLogout } from "./auth";
 
@@ -60,26 +61,30 @@ export const useAuthStore = create<AuthState>()(
 interface PosState {
   cart: CartItem[];
   selectedCustomer: Customer | null;
-  discount: number;
-  addToCart: (item: Omit<CartItem, "id" | "quantity" | "discountAmount"> & { quantity?: number }) => void;
+  discountType: DiscountType;
+  discountValue: number;
+  addToCart: (item: Omit<CartItem, "id" | "quantity" | "discountValue"> & { quantity?: number }) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   setCustomer: (customer: Customer | null) => void;
-  setDiscount: (discount: number) => void;
+  setDiscountType: (discountType: DiscountType) => void;
+  setDiscountValue: (discountValue: number) => void;
   clearCart: () => void;
   subtotal: () => number;
+  discountAmount: () => number;
   total: () => number;
 }
 
 export const usePosStore = create<PosState>((set, get) => ({
   cart: [],
   selectedCustomer: null,
-  discount: 0,
+  discountType: "PERCENTAGE",
+  discountValue: 0,
 
   addToCart: (item) => {
     const id = crypto.randomUUID();
     set((state) => ({
-      cart: [...state.cart, { ...item, id, quantity: item.quantity || 1, discountAmount: 0 }],
+      cart: [...state.cart, { ...item, id, quantity: item.quantity || 1, discountValue: 0 }],
     }));
   },
 
@@ -91,9 +96,21 @@ export const usePosStore = create<PosState>((set, get) => ({
     })),
 
   setCustomer: (customer) => set({ selectedCustomer: customer }),
-  setDiscount: (discount) => set({ discount }),
-  clearCart: () => set({ cart: [], selectedCustomer: null, discount: 0 }),
+  setDiscountType: (discountType) => set({ discountType }),
+  setDiscountValue: (discountValue) => set({ discountValue }),
+  clearCart: () => set({ cart: [], selectedCustomer: null, discountValue: 0 }),
 
-  subtotal: () => get().cart.reduce((sum, i) => sum + i.unitPrice * i.quantity - i.discountAmount, 0),
-  total: () => Math.max(0, get().subtotal() - get().discount),
+  subtotal: () =>
+    get().cart.reduce((sum, i) => {
+      const lineSubtotal = i.unitPrice * i.quantity;
+      const lineDiscount = calculateDiscountAmount(get().discountType, lineSubtotal, i.discountValue);
+      return sum + lineSubtotal - lineDiscount;
+    }, 0),
+
+  discountAmount: () => {
+    const sub = get().subtotal();
+    return calculateDiscountAmount(get().discountType, sub, get().discountValue);
+  },
+
+  total: () => Math.max(0, get().subtotal() - get().discountAmount()),
 }));
