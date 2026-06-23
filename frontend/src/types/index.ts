@@ -231,3 +231,112 @@ export interface WhatsAppMessageLog {
 export interface WhatsAppCampaignDetail extends WhatsAppCampaign {
   messages: WhatsAppMessageLog[];
 }
+
+export interface Appointment {
+  id: string;
+  branchId?: string;
+  branchName?: string;
+  customerId?: string;
+  clientName: string;
+  clientPhone: string;
+  clientEmail?: string;
+  serviceOfferingId?: string;
+  serviceName?: string;
+  serviceType?: string;
+  appointmentDate: string;
+  startTime: string;
+  endTime?: string;
+  durationMinutes: number;
+  notes?: string;
+  status: string;
+  bookingEmployeeId?: string;
+  employeeName?: string;
+  createdAt: string;
+}
+
+export interface BookingEmployee {
+  id: string;
+  branchId?: string;
+  name: string;
+  phoneNumber: string;
+  isActive: boolean;
+  notes?: string;
+  defaultSlotDurationMinutes: number;
+  schedules: EmployeeSchedule[];
+  createdAt: string;
+}
+
+export interface EmployeeSchedule {
+  id: string;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  isWorkingDay: boolean;
+  breaks: EmployeeScheduleBreak[];
+}
+
+export interface EmployeeScheduleBreak {
+  id?: string;
+  startTime: string;
+  endTime: string;
+}
+
+export interface EmployeeDaySchedule {
+  employeeId: string;
+  employeeName: string;
+  isActive: boolean;
+  appointments: Appointment[];
+  availableSlots: AvailableSlot[];
+}
+
+export interface DailyScheduleByEmployee {
+  date: string;
+  branchId?: string;
+  employees: EmployeeDaySchedule[];
+}
+
+export interface AvailableSlot {
+  startTime: string;
+  endTime: string;
+  isAvailable: boolean;
+}
+
+export interface AvailabilityCheck {
+  employeeId: string;
+  employeeName: string;
+  date: string;
+  slotDurationMinutes: number;
+  slots: AvailableSlot[];
+}
+
+export interface WaitingListEntry {
+  id: string;
+  branchId?: string;
+  bookingEmployeeId?: string;
+  employeeName?: string;
+  clientName: string;
+  clientPhone: string;
+  clientEmail?: string;
+  serviceOfferingId?: string;
+  serviceName?: string;
+  serviceType?: string;
+  preferredDate: string;
+  preferredStartTime: string;
+  durationMinutes: number;
+  notes?: string;
+  status: string;
+  priority: number;
+  createdAt: string;
+}
+
+export interface NotificationLog {
+  id: string;
+  appointmentId: string;
+  channel: string;
+  status: string;
+  scheduledFor: string;
+  sentAt?: string;
+  subject: string;
+  body: string;
+  errorMessage?: string;
+}

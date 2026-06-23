@@ -13,9 +13,13 @@ interface PhoneInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "t
 }
 
 export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
-  ({ value, onChange, error, className, onKeyDown, onPaste, ...props }, ref) => {
+  ({ value, onChange, error, className, onKeyDown, onPaste, onInput, ...props }, ref) => {
     const t = useTranslations("validation");
     const { sanitizePhoneInput } = usePhoneValidation();
+
+    const emitChange = (raw: string) => {
+      onChange(sanitizePhoneInput(raw));
+    };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
       const allowed = ["Backspace", "Delete", "Tab", "ArrowLeft", "ArrowRight", "Home", "End"];
@@ -33,7 +37,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
     const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
       e.preventDefault();
       const pasted = e.clipboardData.getData("text");
-      onChange(sanitizePhoneInput(value + pasted));
+      emitChange(value + pasted);
       onPaste?.(e);
     };
 
@@ -43,11 +47,15 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
           ref={ref}
           type="tel"
           inputMode="numeric"
-          pattern="[0-9]*"
           autoComplete="tel"
+          name="phone"
           placeholder={t("phonePlaceholder")}
           value={value}
-          onChange={(e) => onChange(sanitizePhoneInput(e.target.value))}
+          onChange={(e) => emitChange(e.target.value)}
+          onInput={(e) => {
+            emitChange(e.currentTarget.value);
+            onInput?.(e);
+          }}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           className={cn(error && "border-red-400 focus:border-red-500 focus:ring-red-500/20", className)}

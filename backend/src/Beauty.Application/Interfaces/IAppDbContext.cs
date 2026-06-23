@@ -22,6 +22,12 @@ public interface IAppDbContext
     DbSet<Expense> Expenses { get; }
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<TenantSettings> TenantSettings { get; }
+    DbSet<Appointment> Appointments { get; }
+    DbSet<WaitingListEntry> WaitingListEntries { get; }
+    DbSet<NotificationLog> NotificationLogs { get; }
+    DbSet<BookingEmployee> BookingEmployees { get; }
+    DbSet<EmployeeSchedule> EmployeeSchedules { get; }
+    DbSet<EmployeeScheduleBreak> EmployeeScheduleBreaks { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

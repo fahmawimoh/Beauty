@@ -22,6 +22,87 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Beauty.Domain.Entities.Appointment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("AppointmentDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("AssignedUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BookingEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ClientEmail")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClientName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClientPhone")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<TimeOnly?>("EndTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("ServiceOfferingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ServiceType")
+                        .HasColumnType("text");
+
+                    b.Property<TimeOnly>("StartTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedUserId");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("ServiceOfferingId");
+
+                    b.HasIndex("BookingEmployeeId", "AppointmentDate", "StartTime");
+
+                    b.HasIndex("TenantId", "AppointmentDate", "StartTime");
+
+                    b.ToTable("Appointments");
+                });
+
             modelBuilder.Entity("Beauty.Domain.Entities.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -63,7 +144,51 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AuditLogs", (string)null);
+                    b.ToTable("AuditLogs");
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.BookingEmployee", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DefaultSlotDurationMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("TenantId", "Name");
+
+                    b.ToTable("BookingEmployees");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Branch", b =>
@@ -104,7 +229,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.ToTable("Branches", (string)null);
+                    b.ToTable("Branches");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Customer", b =>
@@ -150,7 +275,70 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("\"Phone\" IS NOT NULL");
 
-                    b.ToTable("Customers", (string)null);
+                    b.ToTable("Customers");
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.EmployeeSchedule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BookingEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("integer");
+
+                    b.Property<TimeOnly>("EndTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<bool>("IsWorkingDay")
+                        .HasColumnType("boolean");
+
+                    b.Property<TimeOnly>("StartTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingEmployeeId", "DayOfWeek")
+                        .IsUnique();
+
+                    b.ToTable("EmployeeSchedules");
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.EmployeeScheduleBreak", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EmployeeScheduleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<TimeOnly>("EndTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<TimeOnly>("StartTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeScheduleId");
+
+                    b.ToTable("EmployeeScheduleBreaks");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Expense", b =>
@@ -194,7 +382,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.ToTable("Expenses", (string)null);
+                    b.ToTable("Expenses");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.InventoryLog", b =>
@@ -239,7 +427,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("InventoryLogs", (string)null);
+                    b.ToTable("InventoryLogs");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Invoice", b =>
@@ -310,7 +498,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "InvoiceNumber")
                         .IsUnique();
 
-                    b.ToTable("Invoices", (string)null);
+                    b.ToTable("Invoices");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.InvoiceItem", b =>
@@ -369,7 +557,63 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ServiceOfferingId");
 
-                    b.ToTable("InvoiceItems", (string)null);
+                    b.ToTable("InvoiceItems");
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.NotificationLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AppointmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("ScheduledFor")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppointmentId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("Status", "ScheduledFor");
+
+                    b.ToTable("NotificationLogs");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Product", b =>
@@ -422,7 +666,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId", "Sku", "BranchId");
 
-                    b.ToTable("Products", (string)null);
+                    b.ToTable("Products");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Purchase", b =>
@@ -477,7 +721,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.ToTable("Purchases", (string)null);
+                    b.ToTable("Purchases");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.ServiceCategory", b =>
@@ -512,7 +756,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.ToTable("ServiceCategories", (string)null);
+                    b.ToTable("ServiceCategories");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.ServiceOffering", b =>
@@ -550,7 +794,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.ToTable("ServiceOfferings", (string)null);
+                    b.ToTable("ServiceOfferings");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.ServiceOfferingCategory", b =>
@@ -565,7 +809,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("ServiceOfferingCategories", (string)null);
+                    b.ToTable("ServiceOfferingCategories");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Supplier", b =>
@@ -606,7 +850,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.ToTable("Suppliers", (string)null);
+                    b.ToTable("Suppliers");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Tenant", b =>
@@ -640,7 +884,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("Tenants", (string)null);
+                    b.ToTable("Tenants");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.TenantSettings", b =>
@@ -649,6 +893,16 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("AppointmentReminderHoursBefore")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(24);
+
+                    b.Property<bool>("AutoPromoteWaitingList")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -656,6 +910,11 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<int>("MaxAppointmentsPerSlot")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
@@ -668,7 +927,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId")
                         .IsUnique();
 
-                    b.ToTable("TenantSettings", (string)null);
+                    b.ToTable("TenantSettings");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.User", b =>
@@ -716,7 +975,7 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "Email")
                         .IsUnique();
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.UserBranch", b =>
@@ -734,7 +993,129 @@ namespace Beauty.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("BranchId");
 
-                    b.ToTable("UserBranches", (string)null);
+                    b.ToTable("UserBranches");
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.WaitingListEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BookingEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ClientEmail")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClientName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClientPhone")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly>("PreferredDate")
+                        .HasColumnType("date");
+
+                    b.Property<TimeOnly>("PreferredStartTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("PromotedAppointmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ServiceOfferingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ServiceType")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingEmployeeId");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("PromotedAppointmentId");
+
+                    b.HasIndex("ServiceOfferingId");
+
+                    b.HasIndex("TenantId", "PreferredDate", "PreferredStartTime", "Status");
+
+                    b.ToTable("WaitingListEntries");
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.Appointment", b =>
+                {
+                    b.HasOne("Beauty.Domain.Entities.User", "AssignedUser")
+                        .WithMany()
+                        .HasForeignKey("AssignedUserId");
+
+                    b.HasOne("Beauty.Domain.Entities.BookingEmployee", "BookingEmployee")
+                        .WithMany("Appointments")
+                        .HasForeignKey("BookingEmployeeId");
+
+                    b.HasOne("Beauty.Domain.Entities.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId");
+
+                    b.HasOne("Beauty.Domain.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId");
+
+                    b.HasOne("Beauty.Domain.Entities.ServiceOffering", "ServiceOffering")
+                        .WithMany()
+                        .HasForeignKey("ServiceOfferingId");
+
+                    b.HasOne("Beauty.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AssignedUser");
+
+                    b.Navigation("BookingEmployee");
+
+                    b.Navigation("Branch");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("ServiceOffering");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.AuditLog", b =>
@@ -752,6 +1133,23 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                     b.Navigation("Tenant");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.BookingEmployee", b =>
+                {
+                    b.HasOne("Beauty.Domain.Entities.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId");
+
+                    b.HasOne("Beauty.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Branch");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Branch", b =>
@@ -774,6 +1172,28 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.EmployeeSchedule", b =>
+                {
+                    b.HasOne("Beauty.Domain.Entities.BookingEmployee", "BookingEmployee")
+                        .WithMany("Schedules")
+                        .HasForeignKey("BookingEmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BookingEmployee");
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.EmployeeScheduleBreak", b =>
+                {
+                    b.HasOne("Beauty.Domain.Entities.EmployeeSchedule", "EmployeeSchedule")
+                        .WithMany("Breaks")
+                        .HasForeignKey("EmployeeScheduleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("EmployeeSchedule");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Expense", b =>
@@ -874,6 +1294,25 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("ServiceOffering");
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.NotificationLog", b =>
+                {
+                    b.HasOne("Beauty.Domain.Entities.Appointment", "Appointment")
+                        .WithMany("Notifications")
+                        .HasForeignKey("AppointmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Beauty.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Appointment");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Product", b =>
@@ -1021,6 +1460,59 @@ namespace Beauty.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Beauty.Domain.Entities.WaitingListEntry", b =>
+                {
+                    b.HasOne("Beauty.Domain.Entities.BookingEmployee", "BookingEmployee")
+                        .WithMany()
+                        .HasForeignKey("BookingEmployeeId");
+
+                    b.HasOne("Beauty.Domain.Entities.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId");
+
+                    b.HasOne("Beauty.Domain.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId");
+
+                    b.HasOne("Beauty.Domain.Entities.Appointment", "PromotedAppointment")
+                        .WithMany()
+                        .HasForeignKey("PromotedAppointmentId");
+
+                    b.HasOne("Beauty.Domain.Entities.ServiceOffering", "ServiceOffering")
+                        .WithMany()
+                        .HasForeignKey("ServiceOfferingId");
+
+                    b.HasOne("Beauty.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BookingEmployee");
+
+                    b.Navigation("Branch");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("PromotedAppointment");
+
+                    b.Navigation("ServiceOffering");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.Appointment", b =>
+                {
+                    b.Navigation("Notifications");
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.BookingEmployee", b =>
+                {
+                    b.Navigation("Appointments");
+
+                    b.Navigation("Schedules");
+                });
+
             modelBuilder.Entity("Beauty.Domain.Entities.Branch", b =>
                 {
                     b.Navigation("Expenses");
@@ -1033,6 +1525,11 @@ namespace Beauty.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Beauty.Domain.Entities.Customer", b =>
                 {
                     b.Navigation("Invoices");
+                });
+
+            modelBuilder.Entity("Beauty.Domain.Entities.EmployeeSchedule", b =>
+                {
+                    b.Navigation("Breaks");
                 });
 
             modelBuilder.Entity("Beauty.Domain.Entities.Invoice", b =>

@@ -35,6 +35,9 @@ public static class DependencyInjection
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAuditService, AuditService>();
+        services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
+        services.AddScoped<INotificationChannelSender, InAppNotificationSender>();
+        services.AddHostedService<AppointmentReminderBackgroundService>();
         services.AddHttpContextAccessor();
 
         return services;

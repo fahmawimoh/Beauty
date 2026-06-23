@@ -40,7 +40,7 @@ export function FormDialog({
         <X className="h-4 w-4" />
       </button>
       {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
-      <form onSubmit={onSubmit} className="mt-5 space-y-4">
+      <form onSubmit={onSubmit} noValidate className="mt-5 space-y-4">
         {children}
         <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" onClick={onClose} disabled={loading}>

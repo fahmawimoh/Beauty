@@ -4,7 +4,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import {
   LayoutDashboard, ShoppingCart, Users, Package, Scissors,
-  Building2, BarChart3, UserCog, Sparkles, Settings, Receipt,
+  Building2, BarChart3, UserCog, Sparkles, Settings, Receipt, CalendarDays, Briefcase,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store";
@@ -15,6 +15,8 @@ const navKeys = [
   { href: "/pos", key: "pos", icon: ShoppingCart, roles: ["Admin", "Manager", "Cashier"] },
   { href: "/dashboard/sales", key: "sales", icon: Receipt, roles: ["Admin", "Manager", "Cashier"] },
   { href: "/dashboard/customers", key: "customers", icon: Users, roles: ["Admin", "Manager", "Cashier"] },
+  { href: "/dashboard/employees", key: "employees", icon: Briefcase, roles: ["Admin", "Manager"] },
+  { href: "/dashboard/appointments", key: "appointments", icon: CalendarDays, roles: ["Admin", "Manager", "Cashier"] },
   { href: "/dashboard/services", key: "services", icon: Scissors, roles: ["Admin", "Manager", "Cashier"] },
   { href: "/dashboard/products", key: "products", icon: Package, roles: ["Admin", "Manager", "Cashier"] },
   { href: "/dashboard/users", key: "users", icon: UserCog, roles: ["Admin", "Manager"] },

@@ -5,8 +5,15 @@ import { useTranslations } from "next-intl";
 const MIN_DIGITS = 7;
 const MAX_DIGITS = 15;
 
+/** Maps Eastern Arabic / Persian digits to ASCII 0-9 before stripping non-digits. */
+function normalizeUnicodeDigits(value: string): string {
+  return value
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[\u06F0-\u06F6]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
+}
+
 export function sanitizePhoneInput(value: string): string {
-  return value.replace(/\D/g, "").slice(0, MAX_DIGITS);
+  return normalizeUnicodeDigits(value).replace(/\D/g, "").slice(0, MAX_DIGITS);
 }
 
 export function usePhoneValidation() {
