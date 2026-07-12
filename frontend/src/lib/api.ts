@@ -51,13 +51,22 @@ class ApiClient {
   }
 
   private async parseResponse<T>(res: Response): Promise<ApiResponse<T>> {
-    try {
-      return (await res.json()) as ApiResponse<T>;
-    } catch {
+    const text = await res.text();
+    if (!text) {
       return {
         success: false,
         data: null,
         message: res.statusText || "Request failed",
+      };
+    }
+
+    try {
+      return JSON.parse(text) as ApiResponse<T>;
+    } catch {
+      return {
+        success: false,
+        data: null,
+        message: text.slice(0, 500) || res.statusText || "Request failed",
       };
     }
   }

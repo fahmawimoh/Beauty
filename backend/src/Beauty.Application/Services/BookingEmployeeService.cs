@@ -104,10 +104,7 @@ public class BookingEmployeeService : IBookingEmployeeService
 
         if (request.Schedules is not null)
         {
-            _context.EmployeeScheduleBreaks.RemoveRange(employee.Schedules.SelectMany(s => s.Breaks));
-            _context.EmployeeSchedules.RemoveRange(employee.Schedules);
-            employee.Schedules.Clear();
-            ApplySchedules(employee, request.Schedules);
+            SyncSchedules(employee, request.Schedules);
             EnsureDefaultSchedules(employee);
         }
 
@@ -174,19 +171,70 @@ public class BookingEmployeeService : IBookingEmployeeService
                 IsWorkingDay = input.IsWorkingDay
             };
 
-            if (input.Breaks is not null)
+            ReplaceBreaks(schedule, input.Breaks);
+            employee.Schedules.Add(schedule);
+        }
+    }
+
+    private void SyncSchedules(BookingEmployee employee, IReadOnlyList<EmployeeScheduleInput> schedules)
+    {
+        var incomingDays = new HashSet<DayOfWeek>();
+
+        foreach (var input in schedules)
+        {
+            if (!Enum.TryParse<DayOfWeek>(input.DayOfWeek, true, out var day))
+                throw new InvalidOperationException($"Invalid day of week: {input.DayOfWeek}");
+
+            incomingDays.Add(day);
+
+            var matching = employee.Schedules.Where(s => s.DayOfWeek == day).ToList();
+            var schedule = matching.FirstOrDefault();
+            if (schedule is null)
             {
-                foreach (var b in input.Breaks)
-                {
-                    schedule.Breaks.Add(new EmployeeScheduleBreak
-                    {
-                        StartTime = ParseTime(b.StartTime),
-                        EndTime = ParseTime(b.EndTime)
-                    });
-                }
+                schedule = new EmployeeSchedule { DayOfWeek = day };
+                employee.Schedules.Add(schedule);
             }
 
-            employee.Schedules.Add(schedule);
+            foreach (var duplicate in matching.Skip(1))
+            {
+                ReplaceBreaks(duplicate, null);
+                employee.Schedules.Remove(duplicate);
+                _context.EmployeeSchedules.Remove(duplicate);
+            }
+
+            schedule.StartTime = ParseTime(input.StartTime);
+            schedule.EndTime = ParseTime(input.EndTime);
+            schedule.IsWorkingDay = input.IsWorkingDay;
+            schedule.UpdatedAt = DateTime.UtcNow;
+
+            ReplaceBreaks(schedule, input.Breaks);
+        }
+
+        foreach (var schedule in employee.Schedules.Where(s => !incomingDays.Contains(s.DayOfWeek)).ToList())
+        {
+            ReplaceBreaks(schedule, null);
+            employee.Schedules.Remove(schedule);
+            _context.EmployeeSchedules.Remove(schedule);
+        }
+    }
+
+    private void ReplaceBreaks(EmployeeSchedule schedule, IReadOnlyList<EmployeeScheduleBreakInput>? breaks)
+    {
+        if (schedule.Breaks.Count > 0)
+        {
+            _context.EmployeeScheduleBreaks.RemoveRange(schedule.Breaks.ToList());
+            schedule.Breaks.Clear();
+        }
+
+        if (breaks is null) return;
+
+        foreach (var b in breaks)
+        {
+            schedule.Breaks.Add(new EmployeeScheduleBreak
+            {
+                StartTime = ParseTime(b.StartTime),
+                EndTime = ParseTime(b.EndTime)
+            });
         }
     }
 

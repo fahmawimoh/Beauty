@@ -166,9 +166,20 @@ export default function EmployeesPage() {
 
       if (editingId) {
         const emp = employees.find((e) => e.id === editingId);
-        await api.put(`/booking-employees/${editingId}`, { ...payload, isActive: emp?.isActive ?? true });
+        const updatePayload = {
+          ...payload,
+          branchId: emp?.branchId ?? user?.branchId ?? null,
+          isActive: emp?.isActive ?? true,
+        };
+        if (process.env.NODE_ENV === "development") {
+          console.debug("[employees] PUT", `/booking-employees/${editingId}`, updatePayload);
+        }
+        await api.put(`/booking-employees/${editingId}`, updatePayload);
         toast("success", t("updateEmployee"));
       } else {
+        if (process.env.NODE_ENV === "development") {
+          console.debug("[employees] POST", "/booking-employees", payload);
+        }
         await api.post("/booking-employees", payload);
         toast("success", t("saveEmployee"));
       }

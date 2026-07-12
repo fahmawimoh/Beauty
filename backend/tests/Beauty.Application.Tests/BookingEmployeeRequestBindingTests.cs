@@ -82,4 +82,48 @@ public class BookingEmployeeRequestBindingTests
         Assert.Equal("0788055851", request.PhoneNumber);
         Assert.Single(request.Schedules!);
     }
+
+    [Fact]
+    public void ParseUpdate_WithSchedules_BindsAllFields()
+    {
+        const string json = """
+            {
+              "branchId": "98fd997f-397a-4809-917b-a1cad883db0c",
+              "name": "Sara Updated",
+              "phoneNumber": "0788055851",
+              "isActive": true,
+              "notes": "Updated notes",
+              "defaultSlotDurationMinutes": 45,
+              "schedules": [
+                {
+                  "dayOfWeek": "Monday",
+                  "startTime": "09:00",
+                  "endTime": "17:00",
+                  "isWorkingDay": true,
+                  "breaks": [{ "startTime": "12:00", "endTime": "13:00" }]
+                }
+              ]
+            }
+            """;
+
+        using var document = JsonDocument.Parse(json);
+        var request = BookingEmployeeRequestJson.ParseUpdate(document.RootElement, Options);
+
+        Assert.Equal("Sara Updated", request.Name);
+        Assert.Equal("0788055851", request.PhoneNumber);
+        Assert.True(request.IsActive);
+        Assert.Equal("Updated notes", request.Notes);
+        Assert.Equal(45, request.DefaultSlotDurationMinutes);
+        Assert.Single(request.Schedules!);
+    }
+
+    [Fact]
+    public void ParseUpdate_PhoneAliasOnly_BindsPhoneNumber()
+    {
+        const string json = """{"name":"sara","phone":"0788055851","isActive":true}""";
+        using var document = JsonDocument.Parse(json);
+        var request = BookingEmployeeRequestJson.ParseUpdate(document.RootElement, Options);
+
+        Assert.Equal("0788055851", request.PhoneNumber);
+    }
 }
