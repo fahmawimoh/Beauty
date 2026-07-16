@@ -91,15 +91,15 @@ export default function AppointmentsPage() {
     const branchPart = user?.branchId ? `&branchId=${user.branchId}` : "";
     const data = await api.get<BookingEmployee[]>(`/booking-employees?activeOnly=true${branchPart}`);
     setEmployees(data);
-    setSelectedEmployeeId((prev) => prev || data[0]?.id || "");
   }, [user?.branchId]);
 
   const loadSchedule = useCallback(async () => {
     setLoading(true);
     try {
-      const employeeParam = selectedEmployeeId ? `&employeeId=${selectedEmployeeId}` : "";
+      // Always load the full day so employees with no appointments can be omitted
+      // from the schedule list (and from Select employee) while filtering client-side.
       const data = await api.get<DailyScheduleByEmployee>(
-        `/appointments/daily?date=${selectedDate}${branchQuery}${employeeParam}`
+        `/appointments/daily?date=${selectedDate}${branchQuery}`
       );
       setSchedule(data);
 
@@ -136,9 +136,36 @@ export default function AppointmentsPage() {
 
   const displayEmployees = useMemo(() => {
     if (!schedule) return [];
-    if (selectedEmployeeId) return schedule.employees.filter((e) => e.employeeId === selectedEmployeeId);
-    return schedule.employees;
+    // When viewing all, skip employees with no appointments for this day.
+    const withAppointments = schedule.employees.filter((e) => e.appointments.length > 0);
+    if (selectedEmployeeId) {
+      return schedule.employees.filter((e) => e.employeeId === selectedEmployeeId);
+    }
+    return withAppointments;
   }, [schedule, selectedEmployeeId]);
+
+  /** Select employee: staff available that day (free slots) or already booked. */
+  const selectableEmployees = useMemo(() => {
+    if (!schedule) return [];
+    const ids = new Set(
+      schedule.employees
+        .filter((e) =>
+          e.appointments.length > 0 ||
+          e.availableSlots.some((s) => s.isAvailable)
+        )
+        .map((e) => e.employeeId)
+    );
+    return employees.filter((emp) => ids.has(emp.id));
+  }, [schedule, employees]);
+
+  // Clear selection when the employee is not available / not listed for this day.
+  useEffect(() => {
+    if (!selectedEmployeeId || !schedule) return;
+    const stillValid = selectableEmployees.some((e) => e.id === selectedEmployeeId);
+    if (!stillValid) {
+      setSelectedEmployeeId("");
+    }
+  }, [schedule, selectedEmployeeId, selectableEmployees]);
 
   const navigateDate = (delta: number) => {
     const d = delta > 0 ? addDays(new Date(`${selectedDate}T12:00:00`), 1) : subDays(new Date(`${selectedDate}T12:00:00`), 1);
@@ -293,7 +320,7 @@ export default function AppointmentsPage() {
               onChange={(e) => setSelectedEmployeeId(e.target.value)}
             >
               <option value="">{t("allEmployees")}</option>
-              {employees.map((emp) => (
+              {selectableEmployees.map((emp) => (
                 <option key={emp.id} value={emp.id}>{emp.name}</option>
               ))}
             </select>
