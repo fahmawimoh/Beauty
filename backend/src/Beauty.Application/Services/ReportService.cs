@@ -69,45 +69,194 @@ public class ReportService : IReportService
             productSales.GrandTotal, productSales.TotalQuantitySold, productSales.Products);
     }
 
-    public async Task<PeriodReportDto> GetPeriodReportAsync(string period, Guid? branchId = null, CancellationToken cancellationToken = default)
+    public async Task<PeriodReportDto> GetPeriodReportAsync(PeriodReportQuery query, CancellationToken cancellationToken = default)
     {
-        var (start, end) = GetPeriodRange(period);
+        var period = string.IsNullOrWhiteSpace(query.Period) ? "monthly" : query.Period;
+        if (query.From.HasValue && query.To.HasValue)
+            period = "custom";
+
+        var (start, end) = PeriodRangeHelper.GetRange(period, query.From, query.To);
         var tenantId = RequireTenantId();
+        var status = query.Status ?? InvoiceStatus.Completed;
 
         var invoiceQuery = _context.Invoices
             .Include(i => i.Items)
-            .Where(i => i.TenantId == tenantId && i.Status == InvoiceStatus.Completed
-                && i.CreatedAt >= start && i.CreatedAt <= end);
-        if (branchId.HasValue) invoiceQuery = invoiceQuery.Where(i => i.BranchId == branchId);
+            .Where(i => i.TenantId == tenantId
+                && i.Status == status
+                && i.CreatedAt >= start
+                && i.CreatedAt <= end);
 
-        var invoices = await invoiceQuery.ToListAsync(cancellationToken);
+        if (query.BranchId.HasValue)
+            invoiceQuery = invoiceQuery.Where(i => i.BranchId == query.BranchId);
+        if (query.CustomerId.HasValue)
+            invoiceQuery = invoiceQuery.Where(i => i.CustomerId == query.CustomerId);
+        if (query.PaymentMethod.HasValue)
+            invoiceQuery = invoiceQuery.Where(i => i.PaymentMethod == query.PaymentMethod);
+        if (query.EmployeeId.HasValue)
+            invoiceQuery = invoiceQuery.Where(i => i.Items.Any(ii => ii.EmployeeId == query.EmployeeId));
+        if (query.ServiceId.HasValue)
+            invoiceQuery = invoiceQuery.Where(i => i.Items.Any(ii => ii.ServiceOfferingId == query.ServiceId));
+        if (query.ProductId.HasValue)
+            invoiceQuery = invoiceQuery.Where(i => i.Items.Any(ii => ii.ProductId == query.ProductId));
+
+        var invoices = await invoiceQuery.AsNoTracking().ToListAsync(cancellationToken);
+
+        var totalSales = invoices.Sum(i => i.SubTotal);
+        var totalDiscounts = invoices.Sum(i => i.DiscountAmount);
+        var totalTaxes = invoices.Sum(i => i.TaxAmount);
         var totalRevenue = invoices.Sum(i => i.TotalAmount);
 
         var expenseQuery = _context.Expenses
             .Where(e => e.TenantId == tenantId && e.ExpenseDate >= start && e.ExpenseDate <= end);
-        if (branchId.HasValue) expenseQuery = expenseQuery.Where(e => e.BranchId == branchId);
-        var totalExpenses = await expenseQuery.SumAsync(e => e.Amount, cancellationToken);
+        if (query.BranchId.HasValue)
+            expenseQuery = expenseQuery.Where(e => e.BranchId == query.BranchId);
+        var totalExpenses = await expenseQuery.SumAsync(e => (decimal?)e.Amount, cancellationToken) ?? 0m;
 
-        var salesByCategory = invoices
-            .SelectMany(i => i.Items)
+        var lineItems = invoices.SelectMany(i => i.Items).AsEnumerable();
+        if (query.EmployeeId.HasValue)
+            lineItems = lineItems.Where(ii => ii.EmployeeId == query.EmployeeId);
+        if (query.ServiceId.HasValue)
+            lineItems = lineItems.Where(ii => ii.ServiceOfferingId == query.ServiceId);
+        if (query.ProductId.HasValue)
+            lineItems = lineItems.Where(ii => ii.ProductId == query.ProductId);
+        var filteredItems = lineItems.ToList();
+
+        var salesByCategory = filteredItems
             .GroupBy(ii => ii.ItemType.ToString())
             .Select(g => new CategorySalesDto(g.Key, g.Sum(ii => ii.LineTotal), g.Count()))
+            .OrderByDescending(c => c.Revenue)
             .ToList();
 
-        var salesByEmployee = await _context.InvoiceItems
-            .Include(ii => ii.Employee).Include(ii => ii.Invoice)
-            .Where(ii => ii.Invoice.TenantId == tenantId && ii.EmployeeId != null
-                && ii.Invoice.CreatedAt >= start && ii.Invoice.CreatedAt <= end
-                && ii.Invoice.Status == InvoiceStatus.Completed)
-            .GroupBy(ii => new { ii.EmployeeId, ii.Employee!.FullName })
-            .Select(g => new EmployeeSalesDto(g.Key.EmployeeId!.Value, g.Key.FullName, g.Sum(ii => ii.LineTotal), g.Select(ii => ii.InvoiceId).Distinct().Count()))
-            .ToListAsync(cancellationToken);
+        var salesByEmployee = filteredItems
+            .Where(ii => ii.EmployeeId != null)
+            .GroupBy(ii => ii.EmployeeId!.Value)
+            .Select(g =>
+            {
+                var employeeName = invoices
+                    .SelectMany(i => i.Items)
+                    .FirstOrDefault(ii => ii.EmployeeId == g.Key)?.Employee?.FullName
+                    ?? "Unknown";
+                return new EmployeeSalesDto(
+                    g.Key,
+                    employeeName,
+                    g.Sum(ii => ii.LineTotal),
+                    g.Select(ii => ii.InvoiceId).Distinct().Count());
+            })
+            .OrderByDescending(e => e.Revenue)
+            .ToList();
+
+        // Resolve employee names when Include didn't load them (AsNoTracking + Include Items only)
+        if (salesByEmployee.Count > 0 && salesByEmployee.Any(e => e.EmployeeName == "Unknown"))
+        {
+            var employeeIds = salesByEmployee.Select(e => e.EmployeeId).ToList();
+            var names = await _context.Users
+                .Where(u => employeeIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.FullName })
+                .ToDictionaryAsync(u => u.Id, u => u.FullName, cancellationToken);
+            salesByEmployee = salesByEmployee
+                .Select(e => names.TryGetValue(e.EmployeeId, out var name)
+                    ? e with { EmployeeName = name }
+                    : e)
+                .ToList();
+        }
+
+        var productsSold = filteredItems
+            .Where(ii => ii.ItemType == InvoiceItemType.Product)
+            .GroupBy(ii => new
+            {
+                ii.ProductId,
+                ProductName = !string.IsNullOrWhiteSpace(ii.Name) ? ii.Name : "Product",
+            })
+            .Select(g => new ProductSalesRowDto(
+                g.Key.ProductId,
+                null,
+                g.Key.ProductName,
+                "Product",
+                "General",
+                g.Sum(ii => ii.Quantity),
+                g.Sum(ii => ii.LineTotal)))
+            .OrderByDescending(p => p.TotalSalesAmount)
+            .Take(50)
+            .ToList();
+
+        var servicesSold = filteredItems
+            .Where(ii => ii.ItemType == InvoiceItemType.Service)
+            .GroupBy(ii => new
+            {
+                ii.ServiceOfferingId,
+                ServiceName = !string.IsNullOrWhiteSpace(ii.Name) ? ii.Name : "Service",
+            })
+            .Select(g => new ServiceSalesRowDto(
+                g.Key.ServiceOfferingId,
+                g.Key.ServiceName,
+                "Service",
+                "General",
+                g.Sum(ii => ii.Quantity),
+                g.Sum(ii => ii.LineTotal)))
+            .OrderByDescending(s => s.TotalRevenue)
+            .Take(50)
+            .ToList();
+
+        var productsSoldCount = filteredItems
+            .Where(ii => ii.ItemType == InvoiceItemType.Product)
+            .Sum(ii => ii.Quantity);
+        var servicesSoldCount = filteredItems
+            .Where(ii => ii.ItemType == InvoiceItemType.Service)
+            .Sum(ii => ii.Quantity);
+
+        var paymentMethodSummary = invoices
+            .GroupBy(i => i.PaymentMethod.ToString())
+            .Select(g => new PaymentMethodSummaryDto(g.Key, g.Count(), g.Sum(i => i.TotalAmount)))
+            .OrderByDescending(p => p.TotalAmount)
+            .ToList();
+
+        var revenueTrend = invoices
+            .GroupBy(i => i.CreatedAt.Date)
+            .Select(g => new DailySalesDto(
+                g.Key,
+                g.Sum(i => i.TotalAmount),
+                g.Count(),
+                g.Where(i => i.CustomerId != null).Select(i => i.CustomerId).Distinct().Count()))
+            .OrderBy(d => d.Date)
+            .ToList();
+
+        var appointmentQuery = _context.Appointments
+            .Where(a => a.TenantId == tenantId
+                && a.Status != AppointmentStatus.Cancelled
+                && a.AppointmentDate >= DateOnly.FromDateTime(start)
+                && a.AppointmentDate <= DateOnly.FromDateTime(end));
+        if (query.BranchId.HasValue)
+            appointmentQuery = appointmentQuery.Where(a => a.BranchId == query.BranchId);
+        if (query.CustomerId.HasValue)
+            appointmentQuery = appointmentQuery.Where(a => a.CustomerId == query.CustomerId);
+        if (query.ServiceId.HasValue)
+            appointmentQuery = appointmentQuery.Where(a => a.ServiceOfferingId == query.ServiceId);
+        if (query.EmployeeId.HasValue)
+            appointmentQuery = appointmentQuery.Where(a => a.AssignedUserId == query.EmployeeId);
+        var appointmentCount = await appointmentQuery.CountAsync(cancellationToken);
 
         return new PeriodReportDto(
-            period, start, end, totalRevenue, totalExpenses, totalRevenue - totalExpenses,
-            invoices.Count, invoices.Where(i => i.CustomerId != null).Select(i => i.CustomerId).Distinct().Count(),
+            PeriodRangeHelper.NormalizeSalesPeriod(period),
+            start,
+            end,
+            totalSales,
+            totalRevenue,
+            totalRevenue - totalExpenses,
+            totalExpenses,
+            totalDiscounts,
+            totalTaxes,
+            invoices.Count,
+            invoices.Where(i => i.CustomerId != null).Select(i => i.CustomerId).Distinct().Count(),
+            appointmentCount,
+            productsSoldCount,
+            servicesSoldCount,
             invoices.Count > 0 ? totalRevenue / invoices.Count : 0,
-            salesByCategory, salesByEmployee);
+            salesByCategory,
+            salesByEmployee,
+            productsSold,
+            servicesSold,
+            paymentMethodSummary,
+            revenueTrend);
     }
 
     public async Task<IReadOnlyList<ExpenseDto>> GetExpensesAsync(Guid? branchId = null, DateTime? from = null, DateTime? to = null, CancellationToken cancellationToken = default)

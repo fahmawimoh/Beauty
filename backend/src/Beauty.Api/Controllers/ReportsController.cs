@@ -24,8 +24,23 @@ public class ReportsController : ControllerBase
 
     [HttpGet("period/{period}")]
     [RoleAuthorize(UserRole.Admin, UserRole.Manager)]
-    public async Task<ActionResult<ApiResponse<PeriodReportDto>>> GetPeriodReport(string period, [FromQuery] Guid? branchId, CancellationToken ct)
-        => Ok(ApiResponse<PeriodReportDto>.Ok(await _reportService.GetPeriodReportAsync(period, branchId, ct)));
+    public async Task<ActionResult<ApiResponse<PeriodReportDto>>> GetPeriodReport(
+        string period,
+        [FromQuery] Guid? branchId,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] Guid? employeeId,
+        [FromQuery] Guid? customerId,
+        [FromQuery] Guid? serviceId,
+        [FromQuery] Guid? productId,
+        [FromQuery] PaymentMethod? paymentMethod,
+        [FromQuery] InvoiceStatus? status,
+        CancellationToken ct)
+    {
+        var query = new PeriodReportQuery(
+            period, from, to, branchId, employeeId, customerId, serviceId, productId, paymentMethod, status);
+        return Ok(ApiResponse<PeriodReportDto>.Ok(await _reportService.GetPeriodReportAsync(query, ct)));
+    }
 
     [HttpGet("sales")]
     [RoleAuthorize(UserRole.Admin, UserRole.Manager, UserRole.Cashier)]

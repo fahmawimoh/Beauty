@@ -18,6 +18,7 @@ public record InvoiceDto(
     decimal TaxAmount,
     decimal TotalAmount,
     InvoiceStatus Status,
+    PaymentMethod PaymentMethod,
     DateTime CreatedAt,
     DateTime? PaidAt,
     IReadOnlyList<InvoiceItemDto> Items
@@ -54,6 +55,7 @@ public record CreateInvoiceRequest(
     Guid? CustomerId,
     decimal DiscountValue = 0,
     decimal TaxAmount = 0,
+    PaymentMethod PaymentMethod = PaymentMethod.Cash,
     string? Notes = null,
     IReadOnlyList<CreateInvoiceItemRequest>? Items = null
 );

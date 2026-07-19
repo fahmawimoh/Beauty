@@ -1,3 +1,5 @@
+using Beauty.Domain.Enums;
+
 namespace Beauty.Application.DTOs.Reports;
 
 public record DashboardSummaryDto(
@@ -22,18 +24,42 @@ public record PeriodReportDto(
     string Period,
     DateTime StartDate,
     DateTime EndDate,
+    decimal TotalSales,
     decimal TotalRevenue,
+    decimal TotalProfit,
     decimal TotalExpenses,
-    decimal NetProfit,
+    decimal TotalDiscounts,
+    decimal TotalTaxes,
     int InvoiceCount,
     int CustomerCount,
+    int AppointmentCount,
+    int ProductsSoldCount,
+    int ServicesSoldCount,
     decimal AverageInvoiceValue,
     IReadOnlyList<CategorySalesDto> SalesByCategory,
-    IReadOnlyList<EmployeeSalesDto> SalesByEmployee
+    IReadOnlyList<EmployeeSalesDto> SalesByEmployee,
+    IReadOnlyList<ProductSalesRowDto> ProductsSold,
+    IReadOnlyList<ServiceSalesRowDto> ServicesSold,
+    IReadOnlyList<PaymentMethodSummaryDto> PaymentMethodSummary,
+    IReadOnlyList<DailySalesDto> RevenueTrend
 );
 
 public record CategorySalesDto(string Category, decimal Revenue, int Count);
 public record EmployeeSalesDto(Guid EmployeeId, string EmployeeName, decimal Revenue, int InvoiceCount);
+public record PaymentMethodSummaryDto(string PaymentMethod, int InvoiceCount, decimal TotalAmount);
+
+public record PeriodReportQuery(
+    string Period = "monthly",
+    DateTime? From = null,
+    DateTime? To = null,
+    Guid? BranchId = null,
+    Guid? EmployeeId = null,
+    Guid? CustomerId = null,
+    Guid? ServiceId = null,
+    Guid? ProductId = null,
+    PaymentMethod? PaymentMethod = null,
+    InvoiceStatus? Status = null
+);
 
 public record ExpenseDto(Guid Id, Guid BranchId, string Category, string Description, decimal Amount, DateTime ExpenseDate);
 public record CreateExpenseRequest(Guid BranchId, string Category, string Description, decimal Amount, DateTime ExpenseDate);

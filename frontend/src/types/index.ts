@@ -148,6 +148,7 @@ export interface Invoice {
   taxAmount: number;
   totalAmount: number;
   status: string;
+  paymentMethod?: string;
   createdAt: string;
   paidAt?: string;
   items: InvoiceItem[];

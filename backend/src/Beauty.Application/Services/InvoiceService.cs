@@ -140,6 +140,7 @@ public class InvoiceService : IInvoiceService
             TaxAmount = request.TaxAmount,
             TotalAmount = totalAmount,
             Status = InvoiceStatus.Completed,
+            PaymentMethod = request.PaymentMethod,
             Notes = request.Notes,
             PaidAt = DateTime.UtcNow,
             Items = invoiceItems
@@ -204,7 +205,7 @@ public class InvoiceService : IInvoiceService
         i.CashierId, i.Cashier.FullName, i.SubTotal,
         DiscountTypeMapper.ToApiValue(i.DiscountType), i.DiscountValue, i.DiscountAmount,
         i.TaxAmount, i.TotalAmount,
-        i.Status, i.CreatedAt, i.PaidAt,
+        i.Status, i.PaymentMethod, i.CreatedAt, i.PaidAt,
         i.Items.Select(ii => new InvoiceItemDto(ii.Id, ii.ItemType, ii.ServiceOfferingId, ii.ProductId,
             ii.EmployeeId, ii.Employee?.FullName, ii.Name, ii.Quantity, ii.UnitPrice,
             ii.DiscountValue, ii.DiscountAmount, ii.LineTotal)).ToList());

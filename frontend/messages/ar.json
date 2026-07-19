@@ -387,16 +387,62 @@
     "expenses": "المصروفات",
     "netProfit": "صافي الربح",
     "avgInvoice": "متوسط الفاتورة",
+    "totalSales": "إجمالي المبيعات",
+    "totalRevenue": "إجمالي الإيرادات",
+    "totalProfit": "إجمالي الربح",
+    "totalExpenses": "إجمالي المصروفات",
+    "totalDiscounts": "إجمالي الخصومات",
+    "totalTaxes": "إجمالي الضرائب",
+    "customers": "العملاء",
+    "appointments": "المواعيد",
+    "invoices": "الفواتير",
+    "productsSold": "المنتجات المباعة",
+    "servicesSold": "الخدمات المباعة",
+    "productsSoldTable": "المنتجات المباعة",
+    "servicesSoldTable": "الخدمات المباعة",
+    "qty": "الكمية",
     "salesByCategory": "المبيعات حسب الفئة",
     "employeePerformance": "أداء الموظفين",
+    "paymentMethodSummary": "ملخص طرق الدفع",
+    "revenueTrend": "اتجاه الإيرادات",
     "noData": "لا توجد بيانات لهذه الفترة",
     "noEmployeeData": "لا توجد بيانات مبيعات للموظفين",
     "items": "{count} عناصر",
+    "loadError": "فشل تحميل التقرير",
+    "retry": "إعادة المحاولة",
+    "exportPdfError": "فشل تصدير PDF",
+    "exportingPdf": "جاري التصدير…",
+    "customRangeRequired": "حدد تاريخ البداية والنهاية للنطاق المخصص",
+    "searchPlaceholder": "بحث في الجداول…",
+    "filters": {
+      "from": "من",
+      "to": "إلى",
+      "branch": "الفرع",
+      "employee": "الموظف",
+      "customer": "العميل",
+      "service": "الخدمة",
+      "product": "المنتج",
+      "paymentMethod": "طريقة الدفع",
+      "status": "الحالة"
+    },
+    "paymentMethods": {
+      "Cash": "نقداً",
+      "Card": "بطاقة",
+      "Transfer": "تحويل",
+      "Other": "أخرى"
+    },
+    "statuses": {
+      "Completed": "مكتمل",
+      "Draft": "مسودة",
+      "Cancelled": "ملغى",
+      "Refunded": "مسترد"
+    },
     "periods": {
       "daily": "يومي",
       "weekly": "أسبوعي",
       "monthly": "شهري",
-      "yearly": "سنوي"
+      "yearly": "سنوي",
+      "custom": "مخصص"
     }
   },
   "settings": {

@@ -6,7 +6,7 @@ namespace Beauty.Application.Services;
 public interface IReportService
 {
     Task<DashboardSummaryDto> GetDashboardAsync(Guid? branchId = null, CancellationToken cancellationToken = default);
-    Task<PeriodReportDto> GetPeriodReportAsync(string period, Guid? branchId = null, CancellationToken cancellationToken = default);
+    Task<PeriodReportDto> GetPeriodReportAsync(PeriodReportQuery query, CancellationToken cancellationToken = default);
     Task<SalesOverviewDto> GetSalesOverviewAsync(
         string period,
         Guid? branchId = null,

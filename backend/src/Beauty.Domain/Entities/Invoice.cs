@@ -17,6 +17,7 @@ public class Invoice : BaseEntity
     public decimal TaxAmount { get; set; }
     public decimal TotalAmount { get; set; }
     public InvoiceStatus Status { get; set; } = InvoiceStatus.Completed;
+    public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Cash;
     public string? Notes { get; set; }
     public DateTime? PaidAt { get; set; }
 

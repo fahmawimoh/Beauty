@@ -70,6 +70,7 @@ public class PeriodRangeHelperTests
     [InlineData("weekly")]
     [InlineData("monthly")]
     [InlineData("yearly")]
+    [InlineData("custom")]
     public void NormalizeSalesPeriod_ValidPeriod_ReturnsLowercase(string period)
     {
         Assert.Equal(period, PeriodRangeHelper.NormalizeSalesPeriod(period));
@@ -112,5 +113,17 @@ public class PeriodRangeHelperTests
 
         Assert.Equal(new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc), start);
         Assert.True(end >= start);
+    }
+
+    [Fact]
+    public void GetRange_Custom_UsesInclusiveEndOfDay()
+    {
+        var from = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 7, 10, 0, 0, 0, DateTimeKind.Utc);
+
+        var (start, end) = PeriodRangeHelper.GetRange("custom", from, to);
+
+        Assert.Equal(from, start);
+        Assert.Equal(to.AddDays(1).AddTicks(-1), end);
     }
 }

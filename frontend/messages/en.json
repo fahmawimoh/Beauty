@@ -387,16 +387,62 @@
     "expenses": "Expenses",
     "netProfit": "Net Profit",
     "avgInvoice": "Avg. Invoice",
+    "totalSales": "Total Sales",
+    "totalRevenue": "Total Revenue",
+    "totalProfit": "Total Profit",
+    "totalExpenses": "Total Expenses",
+    "totalDiscounts": "Total Discounts",
+    "totalTaxes": "Total Taxes",
+    "customers": "Customers",
+    "appointments": "Appointments",
+    "invoices": "Invoices",
+    "productsSold": "Products Sold",
+    "servicesSold": "Services Sold",
+    "productsSoldTable": "Products Sold",
+    "servicesSoldTable": "Services Sold",
+    "qty": "Qty",
     "salesByCategory": "Sales by Category",
     "employeePerformance": "Employee Performance",
+    "paymentMethodSummary": "Payment Method Summary",
+    "revenueTrend": "Revenue Trend",
     "noData": "No data for this period",
     "noEmployeeData": "No employee sales data",
     "items": "{count} items",
+    "loadError": "Failed to load report",
+    "retry": "Retry",
+    "exportPdfError": "Failed to export PDF",
+    "exportingPdf": "Exporting…",
+    "customRangeRequired": "Select both start and end dates for a custom range",
+    "searchPlaceholder": "Search tables…",
+    "filters": {
+      "from": "From",
+      "to": "To",
+      "branch": "Branch",
+      "employee": "Employee",
+      "customer": "Customer",
+      "service": "Service",
+      "product": "Product",
+      "paymentMethod": "Payment Method",
+      "status": "Status"
+    },
+    "paymentMethods": {
+      "Cash": "Cash",
+      "Card": "Card",
+      "Transfer": "Transfer",
+      "Other": "Other"
+    },
+    "statuses": {
+      "Completed": "Completed",
+      "Draft": "Draft",
+      "Cancelled": "Cancelled",
+      "Refunded": "Refunded"
+    },
     "periods": {
       "daily": "Daily",
       "weekly": "Weekly",
       "monthly": "Monthly",
-      "yearly": "Yearly"
+      "yearly": "Yearly",
+      "custom": "Custom"
     }
   },
   "settings": {
